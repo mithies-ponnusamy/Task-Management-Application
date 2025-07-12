@@ -1,3 +1,4 @@
+//app.route.ts
 import { Routes } from '@angular/router';
 import { Home } from './pages/home/home/home';
 import { Login } from './auth/login/login';
@@ -19,14 +20,17 @@ import { Settings } from './pages/admin/settings/settings';
 import { HelpCenter } from './pages/admin/help-center/help-center';
 import { LeadLayout } from './pages/lead/lead-layout/lead-layout';
 import { Dashboard } from './pages/lead/dashboard/dashboard';
-import { Timeline } from './pages/lead/timeline/timeline';
 import { Backlogs } from './pages/lead/backlogs/backlogs';
-import { Boards } from './pages/lead/boards/boards';
 import { MemberLayout } from './pages/member/member-layout/member-layout';
 import { Dashboard as MemberDashboard } from './pages/member/dashboard/dashboard';
-import { Timeline as MemberTimeline } from './pages/member/timeline/timeline';
-import { Backlogs as MemberBacklogs } from './pages/member/backlogs/backlogs';
-import { Boards as MemberBoards } from './pages/member/boards/boards';
+import { Tasks as MemberTasks } from './pages/member/tasks/tasks';
+import { Profile } from './pages/member/profile/profile';
+import { Settings as MemberSettings } from './pages/member/settings/settings';
+import { LeadProfile } from './pages/lead/lead-profile/lead-profile';
+import { LeadSettings } from './pages/lead/lead-settings/lead-settings';
+import { Tasks } from './pages/lead/tasks/tasks';
+import { Calendar } from './pages/member/calendar/calendar';
+import { Reports } from './pages/member/reports/reports';
 
 
 export const routes: Routes = [
@@ -53,6 +57,10 @@ export const routes: Routes = [
   {
     path: 'set-new-password',
     component: SetNewPassword
+  },
+  {
+    path: 'unauthorized',
+    component: Login,
   },
   // Admin Routes
   {
@@ -120,9 +128,9 @@ export const routes: Routes = [
         data: { title: 'Dashboard' }
       },
       {
-        path: 'timeline',
-        component: Timeline,
-        data: { title: 'Timeline' }
+        path: 'tasks',
+        component: Tasks,
+        data: { title: 'Tasks' }
       },
       {
         path: 'backlogs',
@@ -130,9 +138,19 @@ export const routes: Routes = [
         data: { title: 'Backlogs' }
       },
       {
-        path: 'boards',
-        component: Boards,
-        data: { title: 'Boards' }
+        path: 'calendar',
+        component: Calendar,
+        data: { title: 'Calendar' }
+      },
+      {
+        path: 'profile',
+        component: LeadProfile,
+        data: { title: 'Profile' }
+      },
+      {
+        path: 'settings',
+        component: LeadSettings,
+        data: { title: 'Settings' }
       },
       {
         path: '',
@@ -153,19 +171,29 @@ export const routes: Routes = [
         data: { title: 'Dashboard' }
       },
       {
-        path: 'timeline',
-        component: MemberTimeline,
-        data: { title: 'Timeline' }
+        path: 'tasks',
+        component: MemberTasks,
+        data: { title: 'Tasks' }
       },
       {
-        path: 'backlogs',
-        component: MemberBacklogs,
-        data: { title: 'Backlogs' }
+        path: 'calendar',
+        component: Calendar,
+        data: { title: 'Calendar' }
       },
       {
-        path: 'boards',
-        component: MemberBoards,
-        data: { title: 'Boards' }
+        path: 'reports',
+        component: Reports,
+        data: { title: 'Reports' }
+      },
+      {
+        path: 'profile',
+        component: Profile,
+        data: { title: 'Profile' }
+      },
+      {
+        path: 'settings',
+        component: MemberSettings,
+        data: { title: 'Settings' }
       },
       {
         path: '',

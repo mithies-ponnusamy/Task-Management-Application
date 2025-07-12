@@ -74,20 +74,22 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
   showReportGenerator = false;
   showAdvancedOptions = false;
   showExportDropdown = false;
+  showReportMenu: number | null = null;
   selectedReport: Report | null = null;
   searchTerm = '';
+  historySearchTerm = '';
   filteredReports: Report[] = [];
+  filteredHistory: any[] = [];
 
   // Pagination
   currentPage = 1;
-  itemsPerPage = 5;
+  itemsPerPage = 3;
   totalPages = 1;
   paginationInfo = { start: 1, end: 6, total: 0 };
 
   tabs = [
     { id: 'saved', label: 'Saved Reports', icon: 'fa-file-alt' },
-    { id: 'history', label: 'Report History', icon: 'fa-history' },
-    { id: 'templates', label: 'Report Templates', icon: 'fa-clone' }
+    { id: 'history', label: 'Report History', icon: 'fa-history' }
   ];
 
   reportForm: ReportForm = {
@@ -121,11 +123,11 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
       id: 1,
       title: "Q2 Task Completion Report",
       type: "Task Status",
-      date: "15 Jun 2023",
-      description: "Comprehensive report showing task completion metrics for Q2 across all teams.",
+      date: "15 Jun 2025",
+      description: "",
       status: "completed",
       filters: {
-        dateRange: "1 Apr - 30 Jun 2023",
+        dateRange: "1 Apr - 30 Jun 2025",
         projects: ["Website Redesign", "Mobile App"],
         teams: ["Development", "Design"],
         statuses: ["Completed", "In Progress"],
@@ -150,7 +152,7 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
           assignee: "John Doe",
           status: "Completed",
           priority: "High",
-          dueDate: "15 May 2023",
+          dueDate: "15 May 2025",
           timeSpent: "8h 30m"
         },
         {
@@ -159,7 +161,7 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
           assignee: "Jane Smith",
           status: "In Progress",
           priority: "Medium",
-          dueDate: "25 Jun 2023",
+          dueDate: "25 Jun 2025",
           timeSpent: "5h 15m"
         },
         {
@@ -168,7 +170,7 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
           assignee: "Mike Johnson",
           status: "In Review",
           priority: "High",
-          dueDate: "20 Jun 2023",
+          dueDate: "20 Jun 2025",
           timeSpent: "12h 45m"
         }
       ],
@@ -180,13 +182,13 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
     },
     {
       id: 2,
-      title: "Team Performance - May 2023",
+      title: "Team Performance - May 2025",
       type: "Team Performance",
-      date: "1 Jun 2023",
-      description: "Team-wise performance metrics including task completion rates and time efficiency.",
+      date: "1 Jun 2025",
+      description: "",
       status: "in-progress",
       filters: {
-        dateRange: "1 May - 31 May 2023",
+        dateRange: "1 May - 31 May 2025",
         projects: ["All Projects"],
         teams: ["Development", "Design", "Marketing"],
         statuses: ["All Statuses"],
@@ -235,33 +237,9 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
   ];
 
   reportHistory = [
-    { name: "Weekly Status Report", type: "Task Status", generatedBy: "Admin User", date: "12 Jun 2023", exportedAs: "PDF" },
-    { name: "Team Performance Review", type: "Team Performance", generatedBy: "Admin User", date: "5 Jun 2023", exportedAs: "Excel" },
-    { name: "Project Health Dashboard", type: "Project Summary", generatedBy: "Project Manager", date: "1 Jun 2023", exportedAs: "PDF" }
-  ];
-
-  reportTemplates = [
-    {
-      name: "Weekly Status Report",
-      type: "Task Status",
-      lastUsed: "12 Jun 2023",
-      description: "Standard weekly report showing task completion status across all projects.",
-      isFavorite: true
-    },
-    {
-      name: "Team Performance",
-      type: "Team Performance",
-      lastUsed: "5 Jun 2023",
-      description: "Team-wise performance metrics including completion rates and time efficiency.",
-      isFavorite: false
-    },
-    {
-      name: "Project Health",
-      type: "Project Summary",
-      lastUsed: "1 Jun 2023",
-      description: "Detailed overview of project progress, risks, and upcoming milestones.",
-      isFavorite: true
-    }
+    { name: "Weekly Status Report", type: "Task Status", generatedBy: "Admin User", date: "12 Jun 2025", exportedAs: "PDF" },
+    { name: "Team Performance Review", type: "Team Performance", generatedBy: "Admin User", date: "5 Jul 2025", exportedAs: "Excel" },
+    { name: "Project Health Dashboard", type: "Project Summary", generatedBy: "Project Manager", date: "7 Jun 2025", exportedAs: "PDF" }
   ];
 
   constructor(
@@ -276,6 +254,7 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnInit() {
     this.filteredReports = [...this.reports];
+    this.filteredHistory = [...this.reportHistory];
     this.updatePagination();
   }
 
@@ -302,10 +281,12 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
   setActiveTab(tabId: string) {
     this.activeTab = tabId;
     this.selectedReport = null;
+    this.showReportMenu = null;
   }
 
   toggleReportGenerator() {
     this.showReportGenerator = !this.showReportGenerator;
+    this.showReportMenu = null;
     if (!this.showReportGenerator) {
       this.resetReportForm();
     }
@@ -317,6 +298,12 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
 
   toggleExportDropdown() {
     this.showExportDropdown = !this.showExportDropdown;
+    this.showReportMenu = null;
+  }
+
+  toggleReportMenu(reportId: number) {
+    this.showReportMenu = this.showReportMenu === reportId ? null : reportId;
+    this.showExportDropdown = false;
   }
 
   generateReport() {
@@ -377,8 +364,22 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
     this.updatePagination();
   }
 
+  filterHistory() {
+    if (!this.historySearchTerm.trim()) {
+      this.filteredHistory = [...this.reportHistory];
+    } else {
+      const term = this.historySearchTerm.toLowerCase();
+      this.filteredHistory = this.reportHistory.filter(history => 
+        history.name.toLowerCase().includes(term) || 
+        history.type.toLowerCase().includes(term) ||
+        history.generatedBy.toLowerCase().includes(term)
+      );
+    }
+  }
+
   viewReport(reportId: number) {
     this.selectedReport = this.reports.find(r => r.id === reportId) || null;
+    this.showReportMenu = null;
     if (this.selectedReport && this.isBrowser) {
       setTimeout(() => {
         this.initializeCharts();
@@ -397,6 +398,7 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
       alert(`Exporting ${report.title} as ${format.toUpperCase()}...`);
       // In a real app, this would trigger actual export functionality
     }
+    this.showReportMenu = null;
   }
 
   exportAs(format: string) {
@@ -404,6 +406,43 @@ export class ReportManagement implements OnInit, OnDestroy, AfterViewInit {
       this.exportReport(this.selectedReport.id, format);
     }
     this.showExportDropdown = false;
+  }
+
+  duplicateReport(reportId: number) {
+    const report = this.reports.find(r => r.id === reportId);
+    if (report) {
+      const newReport = JSON.parse(JSON.stringify(report));
+      newReport.id = this.reports.length + 1;
+      newReport.title = `Copy of ${report.title}`;
+      newReport.date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      
+      this.reports.unshift(newReport);
+      this.filteredReports = [...this.reports];
+      this.updatePagination();
+      this.showReportMenu = null;
+      
+      if (this.isBrowser) {
+        alert('Report duplicated successfully!');
+      }
+    }
+  }
+
+  deleteReport(reportId: number) {
+    if (this.isBrowser && confirm('Are you sure you want to delete this report?')) {
+      this.reports = this.reports.filter(r => r.id !== reportId);
+      this.filteredReports = this.filteredReports.filter(r => r.id !== reportId);
+      
+      if (this.selectedReport?.id === reportId) {
+        this.selectedReport = null;
+      }
+      
+      this.updatePagination();
+      this.showReportMenu = null;
+      
+      if (this.isBrowser) {
+        alert('Report deleted successfully!');
+      }
+    }
   }
 
   printReport() {

@@ -1,3 +1,4 @@
+//login.ts
 import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -25,6 +26,24 @@ export class Login {
   showPassword = false;
   loginError = false;
   isLoading = false;
+  
+  demoUsers = [
+    {
+      email: 'admin@genworx.ai',
+      password: '@admin123',
+      user: { email: 'admin@genworx.ai', role: 'ADMIN' }
+    },
+    {
+      email: 'mithiesoff@gmail.com',
+      password: '@Mithies2315',
+      user: { email: 'mithiesoff@gmail.com', role: 'LEAD' }
+    },
+    {
+      email: 'mithiesofficial@gmail.com',
+      password: '@Mithies2317',
+      user: { email: 'mithiesofficial@gmail.com', role: 'USER' }
+    }
+  ];
 
   features = [
     'Team Collaboration', 
@@ -71,7 +90,7 @@ export class Login {
       password: this.loginForm.value.password
     };
 
-    this.authService.login(credentials)
+    this.authService.login(credentials, this.loginForm.value.rememberMe)
       .pipe(
         finalize(() => this.isLoading = false),
         catchError((error) => {
@@ -81,7 +100,7 @@ export class Login {
       )
       .subscribe({
         next: (response) => {
-          window.location.href = this.getRedirectUrl(response.user.role);
+          this.router.navigateByUrl(this.getRedirectUrl(response.user.role));
         },
         error: () => {
           this.loginError = true;

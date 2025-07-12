@@ -1,27 +1,13 @@
 <!-- sidebar.html -->
 <div class="h-full flex flex-col">
-  <!-- Logo -->
-  <div class="p-4 flex items-center justify-between border-b">
-    <div class="flex items-center" *ngIf="!collapsed">
-      <img src="assets/logo.svg" alt="Logo" class="h-8">
-      <span class="ml-2 text-xl font-semibold">GenFlow</span>
-    </div>
-    <button (click)="toggleCollapse.emit()" class="p-1 rounded-md hover:bg-gray-100">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-      </svg>
-    </button>
-  </div>
-
   <!-- User Profile -->
   <div class="p-4 border-b" *ngIf="!collapsed">
     <div class="flex items-center">
       <img [src]="currentUser?.profileImg || 'assets/default-profile.png'" 
            alt="User" 
-           class="h-10 w-10 rounded-full object-cover">
+           class="h-11 w-10 rounded-full object-cover">
       <div class="ml-3">
         <p class="text-sm font-medium">{{currentUser?.name}} (Lead)</p>
-        <p class="text-xs text-gray-500">{{selectedProject?.name || 'Select a project'}}</p>
       </div>
     </div>
   </div>
@@ -42,13 +28,13 @@
           </a>
         </li>
         <li>
-          <a (click)="navigateTo('timeline')" 
+          <a (click)="navigateTo('tasks')" 
              class="flex items-center px-2 py-2 text-sm rounded-md cursor-pointer"
-             [class]="isActive('timeline') ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-100'">
+             [class]="isActive('tasks') ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-100'">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span class="ml-3" *ngIf="!collapsed">Timeline</span>
+            <span class="ml-3" *ngIf="!collapsed">Tasks</span>
           </a>
         </li>
         <li>
@@ -61,14 +47,15 @@
             <span class="ml-3" *ngIf="!collapsed">Backlogs</span>
           </a>
         </li>
+        <!-- Add this to the navigation section -->
         <li>
-          <a (click)="navigateTo('boards')" 
-             class="flex items-center px-2 py-2 text-sm rounded-md cursor-pointer"
-             [class]="isActive('boards') ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-100'">
+          <a (click)="navigateTo('calendar')" 
+            class="flex items-center px-2 py-2 text-sm rounded-md cursor-pointer"
+            [class]="isActive('calendar') ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-100'">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span class="ml-3" *ngIf="!collapsed">Boards</span>
+            <span class="ml-3" *ngIf="!collapsed">Calendar</span>
           </a>
         </li>
       </ul>

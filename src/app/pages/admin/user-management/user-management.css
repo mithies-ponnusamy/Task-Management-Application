@@ -11,17 +11,17 @@
 }
 
 .tab-content.active {
-    display: block;
+    border-bottom: 2px solid #4f46e5;
+    color: #4f46e5;
 }
 
 .tab-button {
-    transition: all 0.2s;
-    border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
 }
 
 .tab-button.active {
-    border-bottom-color: #4f46e5;
-    color: #4f46e5;
+  border-bottom: 2px solid #4f46e5;
+  color: #4f46e5;
 }
 
 .filter-dropdown {
@@ -72,22 +72,22 @@
 }
 
 .pagination-btn {
-    padding: 0.375rem 0.75rem;
-    border: 1px solid #d1d5db;
-    background-color: white;
-    color: #4b5563;
-    transition: all 0.2s;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #d1d5db;
+  background-color: white;
+  color: #4b5563;
+  transition: all 0.2s ease;
 }
 
 .pagination-btn.active {
-    background-color: #4f46e5;
-    color: white;
-    border-color: #4f46e5;
+  background-color: #4f46e5;
+  color: white;
+  border-color: #4f46e5;
 }
 
 .pagination-btn.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .team-card {
@@ -191,4 +191,9 @@ canvas {
 .disabled:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.required-field::after {
+  content: " *";
+  color: red;
 }

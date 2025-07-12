@@ -9,6 +9,7 @@ export class ProjectService {
     {
       id: '1',
       name: 'Website Redesign',
+      lead: 'Thirunavukarasu KM',
       team: 'Development',
       status: 'in-progress',
       progress: 65,
@@ -19,6 +20,7 @@ export class ProjectService {
     {
       id: '2',
       name: 'Mobile App',
+      lead: 'Hema Dharshini',
       team: 'Development',
       status: 'in-progress',
       progress: 30,

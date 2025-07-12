@@ -20,9 +20,9 @@ export class DemoDataService {
     const demoUsers: User[] = [
       // Same users as in AuthService
     ];
-    
-    if (!this.localStorage.getItem('users')) {
-      this.localStorage.setItem('users', demoUsers);
+
+    if (!this.localStorage.get('users')) {
+      this.localStorage.set('users', demoUsers);
     }
   }
 
@@ -54,8 +54,8 @@ export class DemoDataService {
       }
     ];
 
-    if (!this.localStorage.getItem('teams')) {
-      this.localStorage.setItem('teams', demoTeams);
+    if (!this.localStorage.get('teams')) {
+      this.localStorage.set('teams', demoTeams);
     }
   }
 
@@ -64,6 +64,7 @@ export class DemoDataService {
       {
         id: '1',
         name: 'Website Redesign',
+        lead: 'Thirunavukarasu KM',
         team: 'Development',
         status: 'in-progress',
         progress: 65,
@@ -74,6 +75,7 @@ export class DemoDataService {
       {
         id: '2',
         name: 'Mobile App',
+        lead: 'Hema Dharshini',
         team: 'Development',
         status: 'in-progress',
         progress: 30,
@@ -83,8 +85,8 @@ export class DemoDataService {
       }
     ];
 
-    if (!this.localStorage.getItem('projects')) {
-      this.localStorage.setItem('projects', demoProjects);
+    if (!this.localStorage.get('projects')) {
+      this.localStorage.set('projects', demoProjects);
     }
   }
 }

@@ -1,9 +1,7 @@
 // app.component.ts
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { Header } from './pages/home/header/header';
-import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
-import { Footer } from './pages/home/footer/footer';
+import { LocalStorageService } from './core/services/local-storage/local-storage';
 
 @Component({
   selector: 'app-root',
@@ -13,4 +11,6 @@ import { Footer } from './pages/home/footer/footer';
   templateUrl: './app.html',
   styleUrls: ['./app.css']
 })
-export class AppComponent {}
+export class AppComponent {
+  title = 'Task Management App';
+}

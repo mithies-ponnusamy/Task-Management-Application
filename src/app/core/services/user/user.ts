@@ -81,63 +81,6 @@ export class UserService {
       employeeType: 'Part-time',
       address: '5/9, Marappampalayam Pudhur, Middle Cross, Paramathivelur-TK, Nmakkal - 637210',
       profileImg: 'public/assets/user-images/sandeep.png'
-    },
-    {
-      id: '5',
-      name: 'Abdullah Firdowsi',
-      username: 'abdullah52',
-      phone: '+91 9943980796',
-      gender: 'Male',
-      email: 'abdullahfirdowsi@gmail.com',
-      role: UserRole.USER,
-      status: 'suspended',
-      dob: 'Feb 05 2004',
-      joinDate: '04-05-2025',
-      lastActive: 'Jul 02 2025',
-      department: 'Human Resource',
-      team: 'Recuritment',
-      location: 'Hybrid',
-      employeeType: 'Full-time',
-      address: '51/35, East Street, Mangalampet, Cuddalore - 606104',
-      profileImg: 'public/assets/user-images/firdowsi.png'
-    },
-    {
-      id: '6',
-      name: 'Madhanegha',
-      username: 'madhanegha52',
-      phone: '+91 8438567919',
-      gender: 'Female',
-      email: 'madhanegha@gmail.com',
-      role: UserRole.USER,
-      status: 'on-leave',
-      dob: 'Nov 17 2004',
-      joinDate: '03-05-2025',
-      lastActive: 'Jul 02 2025',
-      department: 'Design',
-      team: 'UI/UX',
-      location: 'Remote',
-      employeeType: 'Part-time',
-      address: '177,K N P Subramaniam nagar, K G pudur road,Tiruppur - 641604',
-      profileImg: 'public/assets/user-images/madhanegha.jpg'
-    },
-    {
-      id: '7',
-      name: 'Chandra Aadhitya',
-      username: 'caadhithya43',
-      phone: '+91 8344461345',
-      gender: 'Male',
-      email: 'capilot@gmail.com',
-      role: UserRole.USER,
-      status: 'active',
-      dob: 'Mar 01 2004',
-      joinDate: '01-05-2025',
-      lastActive: 'Jul 01 2025',
-      department: 'Sales',
-      team: 'Account Management',
-      location: 'Office',
-      employeeType: 'Contract',
-      address: '9/277 Kamraj Nagar, Bodipatti, Udumalpet, Tirupur - 642154',
-      profileImg: 'public/assets/user-images/aadhi.png'
     }
   ];
 
@@ -164,6 +107,10 @@ export class UserService {
 
   getUsers(): User[] {
     return this.users;
+  }
+
+  getCurrentUser(): User | null {
+    return this.users.length > 0 ? this.users[0] : null;
   }
 
   addUser(user: User): void {

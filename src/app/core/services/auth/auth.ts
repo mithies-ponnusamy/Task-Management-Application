@@ -4,6 +4,7 @@ import { delay, tap } from 'rxjs/operators';
 import { AuthResponse, LoginCredentials, User, UserRole } from '../../../model/user.model';
 import { PLATFORM_ID, Inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { SessionStorage } from '../session-storage/session-storage';
 
 @Injectable({
   providedIn: 'root'
@@ -22,7 +23,7 @@ export class Auth {
         role: UserRole.ADMIN,
         name: 'Admin User',
         username: 'admin',
-        status: 'active',
+        status: "active" as "active",
       }
     },
     {
@@ -34,7 +35,7 @@ export class Auth {
         role: UserRole.LEAD,
         name: 'Lead User',
         username: 'leaduser',
-        status: 'active',
+        status: "active" as "active",
       }
     },
     {
@@ -46,7 +47,7 @@ export class Auth {
         role: UserRole.USER,
         name: 'Teammate User',
         username: 'teammateuser',
-        status: 'active'
+        status: "active" as "active"
       }
     }
   ];
@@ -57,24 +58,31 @@ export class Auth {
 
   private loadUserFromStorage(): void {
     if (isPlatformBrowser(this.platformId)) {
-      const userData = localStorage.getItem('currentUser');
-      const token = localStorage.getItem('authToken');
+      const userData = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
       
       if (userData && token) {
         const user: User = JSON.parse(userData);
         this.setCurrentUser(user);
+        SessionStorage.setItem('isLoggedIn', 'true');
       }
     }
   }
 
-  private storeUserData(authResponse: AuthResponse): void {
+  private storeUserData(authResponse: AuthResponse, rememberMe: boolean): void {
     if (isPlatformBrowser(this.platformId)) {
-      localStorage.setItem('currentUser', JSON.stringify(authResponse.user));
-      localStorage.setItem('authToken', authResponse.token);
+      if (rememberMe) {
+        localStorage.setItem('currentUser', JSON.stringify(authResponse.user));
+        localStorage.setItem('authToken', authResponse.token);
+      } else {
+        sessionStorage.setItem('currentUser', JSON.stringify(authResponse.user));
+        sessionStorage.setItem('authToken', authResponse.token);
+      }
+      SessionStorage.setItem('isLoggedIn', 'true');
     }
   }
 
-  login(credentials: LoginCredentials): Observable<AuthResponse> {
+  login(credentials: LoginCredentials, rememberMe: boolean = false): Observable<AuthResponse> {
     const demoUser = this.demoUsers.find(
       u => u.email === credentials.email && u.password === credentials.password
     );
@@ -89,7 +97,7 @@ export class Auth {
         delay(1000),
         tap(response => {
           this.setCurrentUser(response.user);
-          this.storeUserData(response);
+          this.storeUserData(response, rememberMe);
         })
       );
     } else {
@@ -97,18 +105,15 @@ export class Auth {
     }
   }
 
-  logout(): void {
-    this.currentUserSubject.next(null);
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('authToken');
-  }
-
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
   }
 
   isAuthenticated(): boolean {
-    return this.getCurrentUser() !== null;
+    if (isPlatformBrowser(this.platformId)) {
+      return SessionStorage.getItem('isLoggedIn') === 'true' && this.getCurrentUser() !== null;
+    }
+    return false;
   }
 
   hasRole(role: UserRole): boolean {
@@ -127,5 +132,17 @@ export class Auth {
 
   private generateToken(): string {
     return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
+
+  logout() {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('authToken');
+      sessionStorage.removeItem('currentUser');
+      sessionStorage.removeItem('authToken');
+      SessionStorage.removeItem('isLoggedIn');
+      SessionStorage.clear();
+    }
+    this.currentUserSubject.next(null);
   }
 }

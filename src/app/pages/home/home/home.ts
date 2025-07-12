@@ -6,7 +6,7 @@ import { Hero } from '../hero/hero';
 import { BackToTop } from '../back-to-top/back-to-top';
 import { Features } from '../features/features';
 import { Impacts } from '../impacts/impacts';
-import { Testimonials } from '../testinomials/testinomials';
+import { Testimonials } from '../testimonials/testinomials';
 import { Contact } from '../contact/contact';
 import { Footer } from '../footer/footer';
 

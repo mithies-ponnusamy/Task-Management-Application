@@ -19,6 +19,7 @@ export interface User {
   about?: string;
   profileImg?: string;
   password?: string;
+  notifications?: Notification[];
   performance?: {
     taskCompletion: number;
     onTimeDelivery: number;
@@ -89,8 +90,9 @@ export interface Project {
   id: string;
   name: string;
   team: string;
-  startDate: string;
-  deadline: string;
+  lead: string;
+  startDate: string | Date;
+  deadline: string | Date;
   status: 'not-started' | 'in-progress' | 'completed' | 'on-hold';
   progress: number;
   priority: 'low' | 'medium' | 'high';
@@ -99,7 +101,7 @@ export interface Project {
   tasks?: Task[];
   createdAt?: Date;
   updatedAt?: Date;
-  endDate?: string;
+  endDate?: string | Date;
 }
 
 export interface Task {
@@ -109,14 +111,31 @@ export interface Task {
   assignee: string;
   status: 'todo' | 'in-progress' | 'review' | 'done';
   priority: 'low' | 'medium' | 'high';
+  startTime?: string;
+  endTime?: string;
   dueDate: Date;
   completionDate?: Date;
   estimatedHours?: number;
   actualHours?: number;
+  project?: string;
   projectId: string;
   createdAt?: Date;
   updatedAt?: Date;
   tags: string[]; 
   progress?: number;
   storyPoints?: number;
+  sprintId?: string;
+}
+
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  date: Date;
+  read: boolean;
+  type: 'project' | 'team' | 'task' | 'general';
+  projectId?: string;
+  memberId?: string;
+  taskId?: string;
 }

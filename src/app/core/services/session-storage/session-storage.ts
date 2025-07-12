@@ -1,27 +1,40 @@
+// session-storage.ts
 import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
 @Injectable({ providedIn: 'root' })
-export class SessionStorageService {
-  private isBrowser: boolean;
+export class SessionStorage {
+  constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
 
-  constructor(@Inject(PLATFORM_ID) platformId: Object) {
-    this.isBrowser = isPlatformBrowser(platformId);
+  private get storage(): Storage | null {
+    if (isPlatformBrowser(this.platformId)) {
+      return sessionStorage;
+    }
+    return null;
   }
 
-  getItem(key: string): string | null {
-    return this.isBrowser ? sessionStorage.getItem(key) : null;
-  }
-
-  setItem(key: string, value: string): void {
-    if (this.isBrowser) {
+  static setItem(key: string, value: string): void {
+    if (typeof window !== 'undefined') {
       sessionStorage.setItem(key, value);
     }
   }
 
-  removeItem(key: string): void {
-    if (this.isBrowser) {
+  static getItem(key: string): string | null {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(key);
+    }
+    return null;
+  }
+
+  static removeItem(key: string): void {
+    if (typeof window !== 'undefined') {
       sessionStorage.removeItem(key);
+    }
+  }
+
+  static clear(): void {
+    if (typeof window !== 'undefined') {
+      sessionStorage.clear();
     }
   }
 }

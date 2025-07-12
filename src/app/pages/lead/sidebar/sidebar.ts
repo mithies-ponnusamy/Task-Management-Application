@@ -25,11 +25,11 @@ import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
   styleUrls: ['./sidebar.css']
 })
 export class Sidebar {
+  logo: string = 'public/logo/logo-black.png';
   @Input() activePage: string = 'dashboard';
   @Input() isMobileSidebarOpen: boolean = false;
   @Input() currentUser: User | null = null;
   @Input() collapsed: boolean = false;
-  @Output() toggleCollapse = new EventEmitter<void>();
 
   activeMenu: string = 'dashboard';
   projects: Project[] = [];
@@ -42,6 +42,7 @@ export class Sidebar {
   newProject: Project = {
     id: '',
     name: '',
+    lead: '',
     description: '',
     status: 'in-progress',
     startDate: new Date().toISOString().split('T')[0],
@@ -75,6 +76,7 @@ export class Sidebar {
       {
         id: '1',
         name: 'Website Redesign',
+        lead: '1',
         description: 'Complete redesign of company website',
         status: 'in-progress',
         startDate: '2023-05-01',
@@ -88,6 +90,7 @@ export class Sidebar {
       {
         id: '2',
         name: 'Mobile App Development',
+        lead: '2',
         description: 'New mobile application for iOS and Android',
         status: 'in-progress',
         startDate: '2023-04-15',
@@ -101,6 +104,7 @@ export class Sidebar {
       {
         id: '3',
         name: 'Marketing Campaign',
+        lead: '1',
         description: 'Q3 marketing initiatives',
         status: 'not-started',
         startDate: '2023-07-01',
@@ -114,6 +118,7 @@ export class Sidebar {
       {
         id: '4',
         name: 'API Optimization',
+        lead: '3',
         description: 'Improve backend API performance',
         status: 'in-progress',
         startDate: '2023-05-10',
@@ -131,25 +136,25 @@ export class Sidebar {
     this.teamMembers = [
       {
         id: '1',
-        name: 'Sarah Johnson',
+        name: 'Saran V',
         role: 'Designer',
-        email: 'sarah@example.com',
+        email: 'saran@gmail.com',
         skills: ['UI/UX', 'Figma', 'Photoshop'],
         projects: ['1', '3']
       },
       {
         id: '2',
-        name: 'Mike Smith',
+        name: 'Mohamed Hasith',
         role: 'Developer',
-        email: 'mike@example.com',
+        email: 'mhasi@gmail.com',
         skills: ['Angular', 'Node.js', 'TypeScript'],
         projects: ['1', '2']
       },
       {
         id: '3',
-        name: 'Alex Chen',
+        name: 'Arun Pary S',
         role: 'Developer',
-        email: 'alex@example.com',
+        email: 'arunpary@gmail.com',
         skills: ['Java', 'Spring Boot', 'SQL'],
         projects: ['2', '4']
       }
@@ -238,6 +243,7 @@ export class Sidebar {
     this.newProject = {
       id: '',
       name: '',
+      lead: '',
       description: '',
       status: 'in-progress',
       startDate: new Date().toISOString().split('T')[0],

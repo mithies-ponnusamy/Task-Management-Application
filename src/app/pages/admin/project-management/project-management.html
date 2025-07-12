@@ -1,24 +1,20 @@
 <!-- project-management.html -->
 <!-- Tabs Navigation -->
-<div class="flex border-b border-gray-200 mb-6">
-    <button 
-        (click)="setActiveTab('projects')" 
-        [class]="'tab-button px-4 py-2 text-md font-medium ' + (activeTab === 'projects' ? 'active' : '')"
-    >
-        <fa-icon [icon]="faProjectDiagram" class="mr-2"></fa-icon> Projects
-    </button>
-    <button 
-        (click)="setActiveTab('sprints')" 
-        [class]="'tab-button px-4 py-2 text-md font-medium ' + (activeTab === 'sprints' ? 'active' : '')"
-    >
-        <fa-icon [icon]="faTasks" class="mr-2"></fa-icon> Sprints
-    </button>
-    <button 
-        (click)="setActiveTab('team-projects')" 
-        [class]="'tab-button px-4 py-2 text-md font-medium ' + (activeTab === 'team-projects' ? 'active' : '')"
-    >
-        <fa-icon [icon]="faUsers" class="mr-2"></fa-icon> Team Projects
-    </button>
+<div class="flex border-b border-gray-200 mb-6 justify-center">
+    <div class="flex">
+        <button 
+            (click)="setActiveTab('projects')" 
+            [class]="'tab-button px-4 py-2 text-md font-medium ' + (activeTab === 'projects' ? 'active' : '')"
+        >
+            <fa-icon [icon]="faProjectDiagram" class="mr-2"></fa-icon> Projects
+        </button>
+        <button 
+            (click)="setActiveTab('sprints')" 
+            [class]="'tab-button px-4 py-2 text-md font-medium ' + (activeTab === 'sprints' ? 'active' : '')"
+        >
+            <fa-icon [icon]="faTasks" class="mr-2"></fa-icon> Sprints
+        </button>
+    </div>
 </div>
 
 <!-- Projects Tab Content -->
@@ -83,9 +79,7 @@
                                 class="block w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                             >
                                 <option value="">All Teams</option>
-                                <option value="Development Team">Development Team</option>
-                                <option value="Design Team">Design Team</option>
-                                <option value="Marketing Team">Marketing Team</option>
+                                <option *ngFor="let team of teams" [value]="team.name">{{team.name}}</option>
                             </select>
                         </div>
                         <div class="flex justify-end gap-1">
@@ -106,7 +100,7 @@
                 </div>
             </div>
             <button 
-                (click)="openAddProjectModal()"
+                (click)="showAddProjectModal = true"
                 class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-3 rounded-lg flex items-center justify-center text-sm"
             >
                 <fa-icon [icon]="faPlus" class="mr-2"></fa-icon> New Project
@@ -134,17 +128,11 @@
                         <td class="px-6 py-3 whitespace-nowrap">
                             <div class="flex items-center">
                                 <div class="text-sm font-medium text-gray-900">{{project.name}}</div>
-                                <fa-icon 
-                                    [icon]="project.priority === 'high' ? faExclamationCircle : 
-                                            project.priority === 'medium' ? faExclamationTriangle : faInfoCircle"
-                                    [ngClass]="getPriorityIcon(project.priority)"
-                                    class="ml-1 text-xs">
-                                </fa-icon>
                             </div>
                         </td>
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{project.team}}</td>
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{formatDate(project.startDate)}}</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{formatDate(project.deadline)}}</td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{formatDate(project.deadline || '')}}</td>
                         <td class="px-6 py-3 whitespace-nowrap">
                             <div class="flex items-center">
                                 <div class="w-20 mr-2">
@@ -355,10 +343,10 @@
                     <div class="flex items-center">
                         <div class="w-16 mr-2">
                             <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                <div class="bg-indigo-600 h-1.5 rounded-full" [style.width]="(sprint.stats.tasksCompleted / sprint.stats.totalTasks) * 100 + '%'"></div>
+                                <div class="bg-indigo-600 h-1.5 rounded-full" [style.width]="sprint.stats?.progress + '%'"></div>
                             </div>
                         </div>
-                        <span class="text-xs text-gray-500">{{sprint.stats.tasksCompleted}}/{{sprint.stats.totalTasks}} tasks</span>
+                        <span class="text-xs text-gray-500">{{sprint.stats?.tasksCompleted}}/{{sprint.stats?.totalTasks}} tasks</span>
                     </div>
                     <div class="flex space-x-2">
                         <button 
@@ -379,172 +367,6 @@
         </div>
         <div *ngIf="filteredSprints.length === 0" class="text-center text-sm text-gray-500 py-4">
             No sprints found matching your criteria
-        </div>
-    </div>
-</div>
-
-<!-- Team Projects Tab Content -->
-<div *ngIf="activeTab === 'team-projects'" class="tab-content">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Team Projects -->
-        <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-800">Team Projects</h3>
-                <button 
-                    (click)="openCreateTeamProjectModal()"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-3 rounded-lg text-sm"
-                >
-                    Create Team Project
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deadline</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        <tr *ngFor="let project of projects" class="hover:bg-gray-50">
-                            <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{project.name}}</td>
-                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{project.team}}</td>
-                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{formatDate(project.startDate)}}</td>
-                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{formatDate(project.deadline)}}</td>
-                            <td class="px-6 py-3 whitespace-nowrap">
-                                <span class="px-2 py-1 rounded-full text-xs" [ngClass]="getStatusClass(project.status)">
-                                    {{project.status.replace('-', ' ')}}
-                                </span>
-                            </td>
-                            <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                <button 
-                                    (click)="viewProjectDetails(project.id)"
-                                    class="text-indigo-600 hover:text-indigo-900"
-                                >
-                                    View
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Team Leads Status -->
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Team Leads Status</h3>
-            <div class="space-y-4">
-                <!-- Development Team -->
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <h4 class="text-sm font-medium text-gray-700">Development Team</h4>
-                        <span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">3 Projects</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center">
-                            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
-                                <span class="text-xs text-gray-600">JD</span>
-                            </div>
-                            <span class="text-sm">John Doe</span>
-                        </div>
-                        <span class="text-xs team-lead-busy">Busy</span>
-                    </div>
-                </div>
-                
-                <!-- Design Team -->
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <h4 class="text-sm font-medium text-gray-700">Design Team</h4>
-                        <span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">1 Project</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center">
-                            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
-                                <span class="text-xs text-gray-600">JS</span>
-                            </div>
-                            <span class="text-sm">Jane Smith</span>
-                        </div>
-                        <span class="text-xs team-lead-available">Available</span>
-                    </div>
-                </div>
-                
-                <!-- Marketing Team -->
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <h4 class="text-sm font-medium text-gray-700">Marketing Team</h4>
-                        <span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">2 Projects</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center">
-                            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
-                                <span class="text-xs text-gray-600">MJ</span>
-                            </div>
-                            <span class="text-sm">Mike Johnson</span>
-                        </div>
-                        <span class="text-xs team-lead-busy">Busy</span>
-                    </div>
-                </div>
-                
-                <!-- Enhanced Quick Assign -->
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <h4 class="text-sm font-medium text-gray-700 mb-3">Quick Assign</h4>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Select Team</label>
-                            <select [(ngModel)]="selectedTeam" (change)="onTeamChange()" class="block w-full px-3 py-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                                <option value="">Select Team</option>
-                                <option value="development">Development Team</option>
-                                <option value="design">Design Team</option>
-                                <option value="marketing">Marketing Team</option>
-                            </select>
-                        </div>
-                        <div *ngIf="selectedTeam">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Select Project</label>
-                            <select [(ngModel)]="selectedProjectIdForTeam" class="block w-full px-3 py-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                                <option value="">Select Project</option>
-                                <option *ngFor="let project of filteredProjectsForTeam" [value]="project.id">{{project.name}}</option>
-                            </select>
-                        </div>
-                        <div *ngIf="selectedTeamLead" class="p-3 bg-gray-50 rounded-lg">
-                            <div class="flex items-center mb-2">
-                                <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
-                                    <span class="text-xs text-gray-600">{{getInitials(selectedTeamLead.name)}}</span>
-                                </div>
-                                <div>
-                                    <p class="text-xs font-medium">{{selectedTeamLead.name}}</p>
-                                    <p class="text-xs text-gray-500">{{selectedTeamLead.team}}</p>
-                                </div>
-                            </div>
-                            <div class="text-xs">
-                                <p class="mb-1">
-                                    Status: 
-                                    <span [ngClass]="selectedTeamLead.status === 'busy' ? 'team-lead-busy' : 'team-lead-available'">
-                                        {{selectedTeamLead.status | titlecase}}
-                                    </span>
-                                </p>
-                                <p class="text-gray-500">Current Projects: {{selectedTeamLead.projects.length}}</p>
-                                <div class="mt-1">
-                                    <p class="text-gray-500 text-xs truncate" title="{{selectedTeamLead.projects.join(', ')}}">
-                                        {{selectedTeamLead.projects.join(', ')}}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <button 
-                            (click)="assignProject()" 
-                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-3 rounded-lg text-sm"
-                            [disabled]="!selectedTeam || !selectedProjectIdForTeam"
-                            [class.opacity-50]="!selectedTeam || !selectedProjectIdForTeam"
-                        >
-                            Assign Project
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -608,9 +430,7 @@
                                 class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                 [class.border-red-300]="projectForm.get('team')?.invalid && (projectForm.get('team')?.dirty || projectForm.get('team')?.touched)">
                                 <option value="">Select Team</option>
-                                <option value="Development Team">Development Team</option>
-                                <option value="Design Team">Design Team</option>
-                                <option value="Marketing Team">Marketing Team</option>
+                                <option *ngFor="let team of teams" [value]="team.name">{{team.name}}</option>
                             </select>
                             <div *ngIf="projectForm.get('team')?.invalid && (projectForm.get('team')?.dirty || projectForm.get('team')?.touched)" class="text-xs text-red-500 mt-1">
                                 Team is required
@@ -632,10 +452,7 @@
                             class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                             [class.border-red-300]="projectForm.get('manager')?.invalid && (projectForm.get('manager')?.dirty || projectForm.get('manager')?.touched)">
                             <option value="">Select Project Manager</option>
-                            <option value="John Doe">John Doe</option>
-                            <option value="Jane Smith">Jane Smith</option>
-                            <option value="Mike Johnson">Mike Johnson</option>
-                            <option value="Emily Davis">Emily Davis</option>
+                            <option *ngFor="let user of users" [value]="user.name">{{user.name}}</option>
                         </select>
                         <div *ngIf="projectForm.get('manager')?.invalid && (projectForm.get('manager')?.dirty || projectForm.get('manager')?.touched)" class="text-xs text-red-500 mt-1">
                             Project manager is required
@@ -702,11 +519,11 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500">Start Date</label>
-                            <p class="text-sm mt-1">{{formatDate(selectedProject?.startDate)}}</p>
+                            <p class="text-sm mt-1">{{formatDate(selectedProject?.startDate || '')}}</p>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500">Deadline</label>
-                            <p class="text-sm mt-1">{{formatDate(selectedProject?.deadline)}}</p>
+                            <p class="text-sm mt-1">{{formatDate(selectedProject?.deadline || '')}}</p>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500">Project Manager</label>
@@ -769,29 +586,17 @@
                                     <span>Tasks Completed</span>
                                     <span>{{selectedProject?.stats?.tasksCompleted}}/{{selectedProject?.stats?.totalTasks}}</span>
                                 </div>
-                                <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div class="bg-green-500 h-1.5 rounded-full" 
-                                        [style.width]="(selectedProject?.stats?.tasksCompleted / selectedProject?.stats?.totalTasks) * 100 + '%'"></div>
-                                </div>
                             </div>
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
                                     <span>Time Spent</span>
                                     <span>{{selectedProject?.stats?.timeSpent}} / {{selectedProject?.stats?.estimatedTime}} hours</span>
                                 </div>
-                                <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div class="bg-blue-500 h-1.5 rounded-full" 
-                                        [style.width]="(selectedProject?.stats?.timeSpent / selectedProject?.stats?.estimatedTime) * 100 + '%'"></div>
-                                </div>
                             </div>
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
                                     <span>Budget Used</span>
                                     <span>${{selectedProject?.stats?.budgetUsed}}/${{selectedProject?.stats?.totalBudget}}</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div class="bg-purple-500 h-1.5 rounded-full" 
-                                        [style.width]="(selectedProject?.stats?.budgetUsed / selectedProject?.stats?.totalBudget) * 100 + '%'"></div>
                                 </div>
                             </div>
                         </div>
@@ -817,15 +622,7 @@
                         </div>
                         <div class="space-y-2">
                             <div class="flex items-center justify-between text-xs" *ngFor="let sprint of selectedProject?.sprints">
-                                <span>{{sprint.name}}</span>
-                                <span class="px-2 py-1 rounded-full" 
-                                    [ngClass]="{
-                                        'bg-green-100 text-green-800': sprint.status === 'completed',
-                                        'bg-blue-100 text-blue-800': sprint.status === 'active',
-                                        'bg-yellow-100 text-yellow-800': sprint.status === 'upcoming'
-                                    }">
-                                    {{sprint.status | titlecase}}
-                                </span>
+                                <span>{{sprint}}</span>
                             </div>
                             <p class="text-xs text-gray-500" *ngIf="!selectedProject?.sprints?.length">No sprints yet</p>
                         </div>
@@ -836,7 +633,7 @@
                 <button (click)="deleteProject()" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700">
                     Delete Project
                 </button>
-                <button (click)="editProject(selectedProject?.id)" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700">
+                <button (click)="editProject(selectedProject!.id)" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700">
                     Edit Project
                 </button>
             </div>
@@ -903,9 +700,7 @@
                                 class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                 [class.border-red-300]="editProjectForm.get('team')?.invalid && (editProjectForm.get('team')?.dirty || editProjectForm.get('team')?.touched)">
                                 <option value="">Select Team</option>
-                                <option value="Development Team">Development Team</option>
-                                <option value="Design Team">Design Team</option>
-                                <option value="Marketing Team">Marketing Team</option>
+                                <option *ngFor="let team of teams" [value]="team.name">{{team.name}}</option>
                             </select>
                             <div *ngIf="editProjectForm.get('team')?.invalid && (editProjectForm.get('team')?.dirty || editProjectForm.get('team')?.touched)" class="text-xs text-red-500 mt-1">
                                 Team is required
@@ -948,10 +743,7 @@
                             class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                             [class.border-red-300]="editProjectForm.get('manager')?.invalid && (editProjectForm.get('manager')?.dirty || editProjectForm.get('manager')?.touched)">
                             <option value="">Select Project Manager</option>
-                            <option value="John Doe">John Doe</option>
-                            <option value="Jane Smith">Jane Smith</option>
-                            <option value="Mike Johnson">Mike Johnson</option>
-                            <option value="Emily Davis">Emily Davis</option>
+                            <option *ngFor="let user of users" [value]="user.name">{{user.name}}</option>
                         </select>
                         <div *ngIf="editProjectForm.get('manager')?.invalid && (editProjectForm.get('manager')?.dirty || editProjectForm.get('manager')?.touched)" class="text-xs text-red-500 mt-1">
                             Project manager is required
@@ -1114,11 +906,11 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500">Start Date</label>
-                            <p class="text-sm mt-1">{{formatDate(selectedSprint?.startDate)}}</p>
+                            <p class="text-sm mt-1">{{formatDate(selectedSprint?.startDate || '')}}</p>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500">End Date</label>
-                            <p class="text-sm mt-1">{{formatDate(selectedSprint?.endDate)}}</p>
+                            <p class="text-sm mt-1">{{formatDate(selectedSprint?.endDate || '')}}</p>
                         </div>
                     </div>
                     <div class="mb-4">
@@ -1189,25 +981,17 @@
                                     <span>Tasks Completed</span>
                                     <span>{{selectedSprint?.stats?.tasksCompleted}}/{{selectedSprint?.stats?.totalTasks}}</span>
                                 </div>
-                                <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div class="bg-green-500 h-1.5 rounded-full" 
-                                        [style.width]="(selectedSprint?.stats?.tasksCompleted / selectedSprint?.stats?.totalTasks) * 100 + '%'"></div>
-                                </div>
                             </div>
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
                                     <span>Time Spent</span>
                                     <span>{{selectedSprint?.stats?.timeSpent}} / {{selectedSprint?.stats?.estimatedTime}} hours</span>
                                 </div>
-                                <div class="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div class="bg-blue-500 h-1.5 rounded-full" 
-                                        [style.width]="(selectedSprint?.stats?.timeSpent / selectedSprint?.stats?.estimatedTime) * 100 + '%'"></div>
-                                </div>
                             </div>
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
                                     <span>Days Remaining</span>
-                                    <span>{{calculateDaysRemaining(selectedSprint?.endDate) > 0 ? calculateDaysRemaining(selectedSprint?.endDate) + ' days' : 'Completed'}}</span>
+                                    <span>{{calculateDaysRemaining(selectedSprint?.endDate || '') > 0 ? calculateDaysRemaining(selectedSprint?.endDate || '') + ' days' : 'Completed'}}</span>
                                 </div>
                                 <div class="w-full bg-gray-200 rounded-full h-1.5">
                                     <div class="bg-purple-500 h-1.5 rounded-full" 
@@ -1236,7 +1020,7 @@
                 <button (click)="deleteSprint()" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700">
                     Delete Sprint
                 </button>
-                <button (click)="editSprint(selectedSprint?.id)" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700">
+                <button (click)="editSprint(selectedSprint?.id || '')" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700">
                     Edit Sprint
                 </button>
             </div>
@@ -1339,124 +1123,6 @@
                         <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
                             [disabled]="editSprintForm.invalid">
                             Save Changes
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Create Team Project Modal -->
-<div [class.open]="showCreateTeamProjectModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-4 sticky top-0 bg-white z-10">
-                <h3 class="text-lg font-semibold text-gray-800">Create Team Project</h3>
-                <button (click)="closeAllModals()" class="text-gray-400 hover:text-gray-600 text-base">
-                    <fa-icon [icon]="faTimes"></fa-icon>
-                </button>
-            </div>
-            <form (ngSubmit)="createTeamProject()" [formGroup]="teamProjectForm" #createTeamProjectForm="ngForm">
-                <div class="space-y-4">
-                    <div>
-                        <label for="teamProjectName" class="block text-xs font-medium text-gray-500 required-field">Project Name</label>
-                        <input type="text" id="teamProjectName" formControlName="name" 
-                            class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                            [class.border-red-300]="teamProjectForm.get('name')?.invalid && (teamProjectForm.get('name')?.dirty || teamProjectForm.get('name')?.touched)">
-                        <div *ngIf="teamProjectForm.get('name')?.invalid && (teamProjectForm.get('name')?.dirty || teamProjectForm.get('name')?.touched)" class="text-xs text-red-500 mt-1">
-                            <span *ngIf="teamProjectForm.get('name')?.errors?.['required']">Project name is required</span>
-                            <span *ngIf="teamProjectForm.get('name')?.errors?.['minlength']">Project name must be at least 3 characters</span>
-                        </div>
-                    </div>
-                    <div>
-                        <label for="teamProjectDescription" class="block text-xs font-medium text-gray-500 required-field">Description</label>
-                        <textarea id="teamProjectDescription" rows="3" formControlName="description" 
-                            class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                            [class.border-red-300]="teamProjectForm.get('description')?.invalid && (teamProjectForm.get('description')?.dirty || teamProjectForm.get('description')?.touched)"></textarea>
-                        <div *ngIf="teamProjectForm.get('description')?.invalid && (teamProjectForm.get('description')?.dirty || teamProjectForm.get('description')?.touched)" class="text-xs text-red-500 mt-1">
-                            <span *ngIf="teamProjectForm.get('description')?.errors?.['required']">Description is required</span>
-                            <span *ngIf="teamProjectForm.get('description')?.errors?.['minlength']">Description must be at least 10 characters</span>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                            <label for="teamProjectStartDate" class="block text-xs font-medium text-gray-500 required-field">Start Date</label>
-                            <input type="date" id="teamProjectStartDate" formControlName="startDate" 
-                                class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                                [class.border-red-300]="teamProjectForm.get('startDate')?.invalid && (teamProjectForm.get('startDate')?.dirty || teamProjectForm.get('startDate')?.touched)">
-                            <div *ngIf="teamProjectForm.get('startDate')?.invalid && (teamProjectForm.get('startDate')?.dirty || teamProjectForm.get('startDate')?.touched)" class="text-xs text-red-500 mt-1">
-                                Start date is required
-                            </div>
-                        </div>
-                        <div>
-                            <label for="teamProjectEndDate" class="block text-xs font-medium text-gray-500 required-field">End Date</label>
-                            <input type="date" id="teamProjectEndDate" formControlName="endDate" 
-                                class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                                [class.border-red-300]="teamProjectForm.get('endDate')?.invalid && (teamProjectForm.get('endDate')?.dirty || teamProjectForm.get('endDate')?.touched)">
-                            <div *ngIf="teamProjectForm.get('endDate')?.invalid && (teamProjectForm.get('endDate')?.dirty || teamProjectForm.get('endDate')?.touched)" class="text-xs text-red-500 mt-1">
-                                End date is required
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                            <label for="teamProjectTeam" class="block text-xs font-medium text-gray-500 required-field">Assigned Team</label>
-                            <select id="teamProjectTeam" formControlName="team" 
-                                class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                                [class.border-red-300]="teamProjectForm.get('team')?.invalid && (teamProjectForm.get('team')?.dirty || teamProjectForm.get('team')?.touched)">
-                                <option value="">Select Team</option>
-                                <option value="development">Development Team</option>
-                                <option value="design">Design Team</option>
-                                <option value="marketing">Marketing Team</option>
-                            </select>
-                            <div *ngIf="teamProjectForm.get('team')?.invalid && (teamProjectForm.get('team')?.dirty || teamProjectForm.get('team')?.touched)" class="text-xs text-red-500 mt-1">
-                                Team is required
-                            </div>
-                        </div>
-                        <div>
-                            <label for="teamProjectPriority" class="block text-xs font-medium text-gray-500">Priority</label>
-                            <select id="teamProjectPriority" formControlName="priority" 
-                                class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                                <option value="low">Low</option>
-                                <option value="medium" selected>Medium</option>
-                                <option value="high">High</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <label for="teamProjectManager" class="block text-xs font-medium text-gray-500 required-field">Project Manager</label>
-                        <select id="teamProjectManager" formControlName="manager" 
-                            (change)="checkTeamLeadAvailability()"
-                            class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                            [class.border-red-300]="teamProjectForm.get('manager')?.invalid && (teamProjectForm.get('manager')?.dirty || teamProjectForm.get('manager')?.touched)">
-                            <option value="">Select Project Manager</option>
-                            <option value="john">John Doe</option>
-                            <option value="jane">Jane Smith</option>
-                            <option value="mike">Mike Johnson</option>
-                        </select>
-                        <div *ngIf="teamProjectForm.get('manager')?.invalid && (teamProjectForm.get('manager')?.dirty || teamProjectForm.get('manager')?.touched)" class="text-xs text-red-500 mt-1">
-                            Project manager is required
-                        </div>
-                        <p class="mt-1 text-xs" [ngClass]="{'text-red-600': teamLeadAvailability === 'busy', 'text-green-600': teamLeadAvailability === 'available'}" 
-                            *ngIf="teamLeadAvailability">
-                            Status: {{teamLeadAvailability === 'busy' ? 'Busy' : 'Available'}}
-                            <span *ngIf="teamLeadAvailability === 'busy'">(Currently managing {{currentTeamLeadProjects}} projects)</span>
-                        </p>
-                    </div>
-                    <div>
-                        <label for="teamProjectFiles" class="block text-xs font-medium text-gray-500">Project Files</label>
-                        <input type="file" id="teamProjectFiles" (change)="onTeamProjectFileSelected($event)" multiple 
-                            class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                        <p class="mt-1 text-xs text-gray-500">Upload any relevant files for this project (PDF, DOC, XLS, etc.)</p>
-                    </div>
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button type="button" (click)="closeAllModals()" class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50">
-                            Cancel
-                        </button>
-                        <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
-                            [disabled]="teamProjectForm.invalid">
-                            Create Project
                         </button>
                     </div>
                 </div>

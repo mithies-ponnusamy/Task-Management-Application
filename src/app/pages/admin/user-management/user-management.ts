@@ -1,35 +1,30 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
-import { faUsers, faProjectDiagram, faChartLine, faSearch, faFilter, faPlus, faEye, faEdit, faTrashAlt, faTimes, faPhoneAlt, faInfoCircle, faUserFriends, faChevronRight } from '@fortawesome/free-solid-svg-icons';
-import { Team, TeamHierarchy, User, UserRole } from '../../../model/user.model';
-import { UserService } from '../../../core/services/user/user';
+// user-management.ts
+import { Component, OnInit } from '@angular/core';
+import { 
+  faUsers, faProjectDiagram, faSearch, faFilter, faPlus, 
+  faEye, faEdit, faTrashAlt, faTimes, faPhoneAlt, 
+  faInfoCircle, faUserFriends, faChevronRight 
+} from '@fortawesome/free-solid-svg-icons';
+import { User, Team, UserRole } from '../../../model/user.model';
+import { LocalStorageService } from '../../../core/services/local-storage/local-storage';
+import { CommonModule } from '@angular/common';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
-import { Chart, registerables } from 'chart.js';
-import { TeamService } from '../../../core/services/team/team';
-Chart.register(...registerables);
 
 @Component({
   selector: 'app-user-management',
   imports: [
+    CommonModule,
     FontAwesomeModule,
     FormsModule,
-    ReactiveFormsModule,
-    CommonModule
+    ReactiveFormsModule
   ],
   templateUrl: './user-management.html',
-  styleUrls: ['./user-management.css']
 })
 export class UserManagement implements OnInit {
-  @ViewChild('teamCompletionChart', { static: true }) teamCompletionChartRef!: ElementRef;
-  @ViewChild('taskTimelineChart', { static: true }) taskTimelineChartRef!: ElementRef;
-  private teamCompletionChart?: Chart;
-  private taskTimelineChart?: Chart;
-
   // Icons
   faUsers = faUsers;
   faProjectDiagram = faProjectDiagram;
-  faChartLine = faChartLine;
   faSearch = faSearch;
   faFilter = faFilter;
   faPlus = faPlus;
@@ -42,122 +37,94 @@ export class UserManagement implements OnInit {
   faUserFriends = faUserFriends;
   faChevronRight = faChevronRight;
 
-  // Tabs
-  activeTab: 'users' | 'teams' | 'performance' = 'users';
+  // Tab management
+  activeTab: 'users' | 'teams' = 'users';
 
-  // Users Tab
+  // User management
   users: User[] = [];
   filteredUsers: User[] = [];
   paginatedUsers: User[] = [];
-  searchTerm = '';
-  selectedRole = '';
-  selectedStatus = '';
-  selectedTeams = '';
-  showFilterDropdown = false;
-  currentPage = 1;
-  itemsPerPage = 5;
-  totalPages = 1;
-  memberSearchTerm: string = '';
-
-  // Teams Tab
   teams: Team[] = [];
   filteredTeams: Team[] = [];
-  teamSearchTerm = '';
   expandedTeams: string[] = [];
 
-  // Performance Tab
-  teamLeads: User[] = [];
-  topPerformers: User[] = [];
+  // Search and filters
+  searchTerm: string = '';
+  selectedRole: string = '';
+  selectedStatus: string = '';
+  selectedTeamFilter: string = '';
+  showFilterDropdown: boolean = false;
+
+  // Team search
+  teamSearchTerm: string = '';
+
+  // Pagination
+  currentPage: number = 1;
+  itemsPerPage: number = 5;
+  totalPages: number = 1;
 
   // Modals
-  showUserDetailsModal = false;
-  showEditUserModal = false;
-  showAddUserModal = false;
-  showAddTeamModal = false;
-  showAddSubTeamModal = false;
-  showTeamDetailsModal = false;
-  showEditTeamModal = false;
-
-  // Add Member Modal
-  showAddMemberModal = false;
-  selectedMembers: User[] = [];
-  availableMembers: User[] = [];
-  isAddingMembers: boolean = false;
+  showUserDetailsModal: boolean = false;
+  showEditUserModal: boolean = false;
+  showAddUserModal: boolean = false;
+  showAddTeamModal: boolean = false;
+  showAddSubTeamModal: boolean = false;
+  showTeamDetailsModal: boolean = false;
+  showEditTeamModal: boolean = false;
+  showAddMemberModal: boolean = false;
 
   // Selected items
-  selectedUser: User = {
-    id: '',
-    email: '',
-    name: '',
-    username: '',
-    role: UserRole.USER,
-    status: 'active',
-    gender: '',
-  };
+  selectedUser: User = this.getDefaultUser();
   selectedTeam: Team | null = null;
+  newUser: User = this.getDefaultUser();
+  newTeam: Team = this.getDefaultTeam();
+  newSubTeam: Team = this.getDefaultTeam();
 
-  // New items
-  newUser: Partial<User> = {
-    role: UserRole.USER,
-    status: 'active',
-    employeeType: 'full-time',
-    location: 'remote'
-  };
-  newTeam: Partial<Team> = {
-    members: 0,
-    projects: 0,
-    completionRate: 0
-  };
-  newSubTeam: Partial<Team> = {
-    members: 0,
-    projects: 0,
-    completionRate: 0
-  };
-
-  // Form validation
+  // Form errors
   userFormErrors: any = {};
   teamFormErrors: any = {};
-  isSubmitting = false;
 
-  constructor(
-    private userService: UserService,
-    private teamService: TeamService
-  ) {}
+  // Loading states
+  isSubmitting: boolean = false;
+  isAddingMembers: boolean = false;
+
+  // Member selection
+  availableMembers: User[] = [];
+  memberSearchTerm: string = '';
+  selectedMembers: User[] = [];
+
+  constructor(private localStorage: LocalStorageService) {}
 
   ngOnInit(): void {
-    this.loadUsers();
-    this.loadTeams();
-    this.loadPerformanceData();
+    this.loadInitialData();
+    this.applyFilters();
+    this.filterTeams();
   }
 
-  switchTab(tab: 'users' | 'teams' | 'performance'): void {
+  private loadInitialData(): void {
+    this.users = this.localStorage.getUsers<User[]>() || this.getSampleUsers();
+    this.teams = this.localStorage.getTeams<Team[]>() || this.getSampleTeams();
+  }
+
+  // Tab management
+  switchTab(tab: 'users' | 'teams'): void {
     this.activeTab = tab;
-    if (tab === 'teams') {
-      this.loadTeams();
-    } else if (tab === 'performance') {
-      this.loadPerformanceData();
-    }
   }
 
-  loadUsers(): void {
-    this.users = this.userService.getUsers();
-    this.filteredUsers = [...this.users];
-    this.updatePagination();
-  }
-
+  // User filtering and search
   applyFilters(): void {
     this.filteredUsers = this.users.filter(user => {
       const matchesSearch = !this.searchTerm || 
-        user.name?.toLowerCase().includes(this.searchTerm.toLowerCase()) || 
+        user.name.toLowerCase().includes(this.searchTerm.toLowerCase()) || 
         user.email.toLowerCase().includes(this.searchTerm.toLowerCase());
       
       const matchesRole = !this.selectedRole || user.role === this.selectedRole;
       const matchesStatus = !this.selectedStatus || user.status === this.selectedStatus;
-      const matchesTeam = !this.selectedTeam || user.team === this.selectedTeams;
-      
+      const matchesTeam = !this.selectedTeamFilter || user.team === this.selectedTeamFilter;
+
       return matchesSearch && matchesRole && matchesStatus && matchesTeam;
     });
-    
+
     this.currentPage = 1;
     this.updatePagination();
   }
@@ -166,14 +133,26 @@ export class UserManagement implements OnInit {
     this.searchTerm = '';
     this.selectedRole = '';
     this.selectedStatus = '';
-    this.selectedTeams = '';
+    this.selectedTeamFilter = '';
     this.applyFilters();
+    this.showFilterDropdown = false;
   }
 
+  // Team filtering and search
+  filterTeams(): void {
+    this.filteredTeams = this.teams.filter(team => 
+      !this.teamSearchTerm || 
+      team.name.toLowerCase().includes(this.teamSearchTerm.toLowerCase()) ||
+      team.department.toLowerCase().includes(this.teamSearchTerm.toLowerCase())
+    );
+  }
+
+  // Pagination
   updatePagination(): void {
     this.totalPages = Math.ceil(this.filteredUsers.length / this.itemsPerPage);
     const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-    this.paginatedUsers = this.filteredUsers.slice(startIndex, startIndex + this.itemsPerPage);
+    const endIndex = startIndex + this.itemsPerPage;
+    this.paginatedUsers = this.filteredUsers.slice(startIndex, endIndex);
   }
 
   changePage(page: number): void {
@@ -196,6 +175,7 @@ export class UserManagement implements OnInit {
     return end > this.filteredUsers.length ? this.filteredUsers.length : end;
   }
 
+  // User actions
   viewUserDetails(user: User): void {
     this.selectedUser = { ...user };
     this.showUserDetailsModal = true;
@@ -203,151 +183,153 @@ export class UserManagement implements OnInit {
 
   editUser(user: User): void {
     this.selectedUser = { ...user };
-    this.userFormErrors = {};
     this.showEditUserModal = true;
-  }
-
-  async saveUser(): Promise<void> {
-    this.userFormErrors = {};
-    this.isSubmitting = true;
-
-    if (!this.selectedUser.name) {
-      this.userFormErrors.name = 'Name is required';
-    }
-    if (!this.selectedUser.email) {
-      this.userFormErrors.email = 'Email is required';
-    } else if (!this.validateEmail(this.selectedUser.email)) {
-      this.userFormErrors.email = 'Invalid email format';
-    }
-    if (!this.selectedUser.username) {
-      this.userFormErrors.username = 'Username is required';
-    }
-    if (!this.selectedUser.role) {
-      this.userFormErrors.role = 'Role is required';
-    }
-    if (!this.selectedUser.status) {
-      this.userFormErrors.status = 'Status is required';
-    }
-
-    if (Object.keys(this.userFormErrors).length > 0) {
-      this.isSubmitting = false;
-      return;
-    }
-
-    try {
-      await this.userService.updateUser(this.selectedUser);
-      this.loadUsers();
-      this.closeModals();
-      this.showSuccessToast('User updated successfully!');
-    } catch (error) {
-      this.showErrorToast('Failed to update user. Please try again.');
-      console.error('Error updating user:', error);
-    } finally {
-      this.isSubmitting = false;
-    }
   }
 
   deleteUser(user: User): void {
     if (confirm(`Are you sure you want to delete ${user.name}?`)) {
-      this.userService.deleteUser(user.id);
-      this.loadUsers();
+      this.users = this.users.filter(u => u.id !== user.id);
+      this.localStorage.saveUsers(this.users);
+      this.applyFilters();
       this.closeModals();
     }
   }
 
   openAddUserModal(): void {
-    this.newUser = {
-      role: UserRole.USER,
-      status: 'active',
-      employeeType: 'full-time',
-      location: 'remote'
-    };
-    this.userFormErrors = {};
+    this.newUser = this.getDefaultUser();
     this.showAddUserModal = true;
   }
 
-  async createUser(): Promise<void> {
-    this.userFormErrors = {};
-    this.isSubmitting = true;
+  createUser(): void {
+    if (this.validateUserForm(this.newUser)) {
+        this.isSubmitting = true;
+        
+        // Generate sequential numeric ID
+        const maxId = this.users.length > 0 ? Math.max(...this.users.map(u => parseInt(u.id) || 0)) : 0;
+        this.newUser.id = (maxId + 1).toString();
+        
+        this.newUser.joinDate = new Date().toISOString();
+        this.newUser.lastActive = new Date().toISOString();
+        
+        this.users.push({ ...this.newUser });
+        this.localStorage.saveUsers(this.users);
+        
+        this.isSubmitting = false;
+        this.showAddUserModal = false;
+        this.applyFilters();
+    }
+  }
 
-    if (!this.newUser.name) {
-      this.userFormErrors.name = 'Name is required';
-    }
-    if (!this.newUser.email) {
-      this.userFormErrors.email = 'Email is required';
-    } else if (!this.validateEmail(this.newUser.email)) {
-      this.userFormErrors.email = 'Invalid email format';
-    }
-    if (!this.newUser.username) {
-      this.userFormErrors.username = 'Username is required';
-    }
-    if (!this.newUser.password) {
-      this.userFormErrors.password = 'Password is required';
-    }
-    if (!this.newUser.role) {
-      this.userFormErrors.role = 'Role is required';
-    }
-    if (!this.newUser.status) {
-      this.userFormErrors.status = 'Status is required';
-    }
-
-    if (Object.keys(this.userFormErrors).length > 0) {
-      this.isSubmitting = false;
-      return;
-    }
-
-    try {
-      const newUser: User = {
-        id: (this.users.length + 1).toString(),
-        name: this.newUser.name!,
-        email: this.newUser.email!,
-        username: this.newUser.username || this.newUser.email!.split('@')[0],
-        password: this.newUser.password!,
-        role: this.newUser.role as UserRole,
-        status: this.newUser.status || 'active',
-        team: this.newUser.team || null,
-        phone: this.newUser.phone,
-        gender: this.newUser.gender,
-        dob: this.newUser.dob,
-        department: this.newUser.department,
-        employeeType: this.newUser.employeeType,
-        location: this.newUser.location,
-        joinDate: this.newUser.joinDate || new Date().toISOString(),
-        lastActive: new Date().toISOString(),
-        address: this.newUser.address,
-        about: this.newUser.about,
-        profileImg: this.newUser.profileImg || 'assets/images/default-profile.png'
-      };
+  saveUser(): void {
+    if (this.validateUserForm(this.selectedUser)) {
+      this.isSubmitting = true;
       
-      await this.userService.addUser(newUser);
-      this.loadUsers();
-      this.closeModals();
-      this.showSuccessToast('User created successfully!');
-    } catch (error) {
-      this.showErrorToast('Failed to create user. Please try again.');
-      console.error('Error creating user:', error);
-    } finally {
+      const index = this.users.findIndex(u => u.id === this.selectedUser.id);
+      if (index !== -1) {
+        this.users[index] = { ...this.selectedUser };
+        this.localStorage.saveUsers(this.users);
+      }
+      
       this.isSubmitting = false;
+      this.showEditUserModal = false;
+      this.applyFilters();
     }
   }
 
-  loadTeams(): void {
-    this.teams = this.teamService.getTeams();
-    this.filteredTeams = [...this.teams];
+  // Team actions
+  viewTeamDetails(team: Team): void {
+    this.selectedTeam = { ...team };
+    this.showTeamDetailsModal = true;
   }
 
-  filterTeams(): void {
-    if (!this.teamSearchTerm) {
-      this.filteredTeams = [...this.teams];
-    } else {
-      this.filteredTeams = this.teams.filter(team => 
-        team.name.toLowerCase().includes(this.teamSearchTerm.toLowerCase()) ||
-        (team.department && team.department.toLowerCase().includes(this.teamSearchTerm.toLowerCase())) ||
-        (team.lead && team.lead.toLowerCase().includes(this.teamSearchTerm.toLowerCase()))
-      );
+  editTeam(team: Team): void {
+    this.selectedTeam = { ...team };
+    this.showEditTeamModal = true;
+  }
+
+  deleteTeam(team: Team): void {
+    if (confirm(`Are you sure you want to delete ${team.name}?`)) {
+      this.teams = this.teams.filter(t => t.id !== team.id);
+      this.localStorage.saveTeams(this.teams);
+      this.filterTeams();
+      this.closeModals();
     }
   }
 
+  openAddTeamModal(): void {
+    this.newTeam = this.getDefaultTeam();
+    this.showAddTeamModal = true;
+  }
+
+  openAddSubTeamModal(): void {
+    this.newSubTeam = this.getDefaultTeam();
+    this.showAddSubTeamModal = true;
+  }
+
+  createTeam(): void {
+    if (this.validateTeamForm(this.newTeam)) {
+      this.isSubmitting = true;
+      
+      this.newTeam.id = this.generateId();
+      this.newTeam.members = 0;
+      this.newTeam.projects = 0;
+      this.newTeam.completionRate = 0;
+      this.newTeam.subTeams = [];
+      
+      this.teams.push({ ...this.newTeam });
+      this.localStorage.saveTeams(this.teams);
+      
+      this.isSubmitting = false;
+      this.showAddTeamModal = false;
+      this.filterTeams();
+    }
+  }
+
+  createSubTeam(): void {
+    if (this.validateTeamForm(this.newSubTeam)) {
+      this.isSubmitting = true;
+      
+      this.newSubTeam.id = this.generateId();
+      this.newSubTeam.members = 0;
+      this.newSubTeam.projects = 0;
+      this.newSubTeam.completionRate = 0;
+      this.newSubTeam.subTeams = [];
+      
+      // Find parent team and add this sub-team to its subTeams array
+      const parentTeamIndex = this.teams.findIndex(t => t.id === this.newSubTeam.parentTeam);
+      if (parentTeamIndex !== -1) {
+        if (!this.teams[parentTeamIndex].subTeams) {
+          this.teams[parentTeamIndex].subTeams = [];
+        }
+        this.teams[parentTeamIndex].subTeams?.push({ ...this.newSubTeam });
+      }
+      
+      this.teams.push({ ...this.newSubTeam });
+      this.localStorage.saveTeams(this.teams);
+      
+      this.isSubmitting = false;
+      this.showAddSubTeamModal = false;
+      this.filterTeams();
+    }
+  }
+
+  saveTeamEdits(): void {
+    if (this.selectedTeam && this.validateTeamForm(this.selectedTeam)) {
+      this.isSubmitting = true;
+      
+      const index = this.teams.findIndex(t => t.id === this.selectedTeam?.id);
+      if (index !== -1) {
+        this.teams[index] = { ...this.selectedTeam };
+        this.localStorage.saveTeams(this.teams);
+      }
+      
+      this.isSubmitting = false;
+      this.showEditTeamModal = false;
+      this.filterTeams();
+    }
+  }
+
+  // Team hierarchy
   toggleTeamExpansion(teamId: string): void {
     const index = this.expandedTeams.indexOf(teamId);
     if (index === -1) {
@@ -361,360 +343,132 @@ export class UserManagement implements OnInit {
     return this.expandedTeams.includes(teamId);
   }
 
-  getSubTeams(teamId: string): Team[] {
-    return this.teams.filter(team => team.parentTeam === teamId);
+  getSubTeams(parentTeamId: string): Team[] {
+    return this.teams.filter(team => team.parentTeam === parentTeamId);
   }
 
-  openAddTeamModal(): void {
-    this.newTeam = {
-      members: 0,
-      projects: 0,
-      completionRate: 0
-    };
-    this.teamFormErrors = {};
-    this.showAddTeamModal = true;
-  }
-
-  openAddSubTeamModal(): void {
-    this.newSubTeam = {
-      members: 0,
-      projects: 0,
-      completionRate: 0
-    };
-    this.teamFormErrors = {};
-    this.showAddSubTeamModal = true;
-  }
-
-  addSubTeam(team: Team): void {
-    this.newSubTeam = {
-      parentTeam: team.name,
-      members: 0,
-      projects: 0,
-      completionRate: 0
-    };
-    this.teamFormErrors = {};
-    this.showAddSubTeamModal = true;
-  }
-
-  async createTeam(): Promise<void> {
-    this.teamFormErrors = {};
-    this.isSubmitting = true;
-
-    if (!this.newTeam.name) {
-      this.teamFormErrors.name = 'Team name is required';
-    }
-    if (!this.newTeam.department) {
-      this.teamFormErrors.department = 'Department is required';
-    }
-
-    if (Object.keys(this.teamFormErrors).length > 0) {
-      this.isSubmitting = false;
-      return;
-    }
-
-    try {
-      const newTeam: Team = {
-        id: (this.teams.length + 1).toString(),
-        name: this.newTeam.name!,
-        department: this.newTeam.department!,
-        lead: this.newTeam.lead,
-        members: this.newTeam.members || 0,
-        projects: this.newTeam.projects || 0,
-        completionRate: this.newTeam.completionRate || 0,
-        description: this.newTeam.description,
-        parentTeam: this.newTeam.parentTeam || null
-      };
+  getTeamHierarchy(team: Team): any[] {
+    const hierarchy = [];
+    let currentTeam: Team | undefined = team;
+    
+    while (currentTeam) {
+      hierarchy.unshift({
+        ...currentTeam,
+        level: hierarchy.length
+      });
       
-      await this.teamService.addTeam(newTeam);
-      this.loadTeams();
-      this.closeModals();
-      this.showSuccessToast('Team created successfully!');
-    } catch (error) {
-      this.showErrorToast('Failed to create team. Please try again.');
-      console.error('Error creating team:', error);
-    } finally {
-      this.isSubmitting = false;
-    }
-  }
-
-  async createSubTeam(): Promise<void> {
-    this.teamFormErrors = {};
-    this.isSubmitting = true;
-
-    if (!this.newSubTeam.name) {
-      this.teamFormErrors.name = 'Sub-team name is required';
-    }
-    if (!this.newSubTeam.parentTeam) {
-      this.teamFormErrors.parentTeam = 'Parent team is required';
-    }
-
-    if (Object.keys(this.teamFormErrors).length > 0) {
-      this.isSubmitting = false;
-      return;
-    }
-
-    try {
-      const newSubTeam: Team = {
-        id: (this.teams.length + 1).toString(),
-        name: this.newSubTeam.name!,
-        department: this.teams.find(t => t.name === this.newSubTeam.parentTeam)?.department || '',
-        lead: this.newSubTeam.lead,
-        members: this.newSubTeam.members || 0,
-        projects: this.newSubTeam.projects || 0,
-        completionRate: this.newSubTeam.completionRate || 0,
-        description: this.newSubTeam.description,
-        parentTeam: this.newSubTeam.parentTeam
-      };
-      
-      await this.teamService.addTeam(newSubTeam);
-      this.loadTeams();
-      this.closeModals();
-      this.showSuccessToast('Sub-team created successfully!');
-    } catch (error) {
-      this.showErrorToast('Failed to create sub-team. Please try again.');
-      console.error('Error creating sub-team:', error);
-    } finally {
-      this.isSubmitting = false;
-    }
-  }
-
-  viewTeamDetails(team: Team): void {
-    this.selectedTeam = { ...team };
-    this.showTeamDetailsModal = true;
-  }
-
-  editTeam(team: Team): void {
-    this.selectedTeam = JSON.parse(JSON.stringify(team));
-    this.teamFormErrors = {};
-    this.showEditTeamModal = true;
-  }
-
-  async saveTeamEdits(): Promise<void> {
-    if (!this.selectedTeam) return;
-
-    this.teamFormErrors = {};
-    this.isSubmitting = true;
-
-    if (!this.selectedTeam.name) {
-      this.teamFormErrors.name = 'Team name is required';
-    }
-    if (!this.selectedTeam.department) {
-      this.teamFormErrors.department = 'Department is required';
-    }
-
-    if (Object.keys(this.teamFormErrors).length > 0) {
-      this.isSubmitting = false;
-      return;
-    }
-
-    try {
-      await this.teamService.updateTeam(this.selectedTeam);
-      
-      const index = this.teams.findIndex(t => t.id === this.selectedTeam?.id);
-      if (index !== -1) {
-        this.teams[index] = {...this.selectedTeam};
+      if (currentTeam.parentTeam) {
+        currentTeam = this.teams.find(t => t.id === currentTeam?.parentTeam);
+      } else {
+        currentTeam = undefined;
       }
-      
-      this.filteredTeams = this.filteredTeams.map(t => 
-        t.id === this.selectedTeam?.id ? {...this.selectedTeam} : t
-      );
-
-      this.showSuccessToast('Team updated successfully!');
-      this.closeModals();
-    } catch (error) {
-      this.showErrorToast('Failed to update team. Please try again.');
-      console.error('Error updating team:', error);
-    } finally {
-      this.isSubmitting = false;
     }
+    
+    return hierarchy;
   }
 
-  deleteTeam(team: Team): void {
-    if (confirm(`Are you sure you want to delete the team "${team.name}"?`)) {
-      this.teamService.deleteTeam(team.id);
-      this.loadTeams();
-      this.closeModals();
-    }
-  }
-
+  // Member management
   addMemberToTeam(team: Team): void {
-    this.selectedTeam = {...team};
-    this.selectedMembers = [];
+    this.selectedTeam = team;
+    this.availableMembers = this.users.filter(user => !user.team || user.team !== team.name);
     this.memberSearchTerm = '';
-    this.filterAvailableMembers();
+    this.selectedMembers = [];
     this.showAddMemberModal = true;
   }
 
   filterAvailableMembers(): void {
-    if (!this.selectedTeam) return;
-
-    const teamMemberIds = this.getTeamMembers(this.selectedTeam.name).map(m => m.id);
-    let filtered = this.users.filter(user => !teamMemberIds.includes(user.id));
-
-    if (this.memberSearchTerm) {
-      const term = this.memberSearchTerm.toLowerCase();
-      filtered = filtered.filter(user => 
-        user.name.toLowerCase().includes(term) || 
-        user.email.toLowerCase().includes(term)
+    if (!this.memberSearchTerm) {
+      this.availableMembers = this.users.filter(user => !user.team || user.team !== this.selectedTeam?.name);
+    } else {
+      this.availableMembers = this.users.filter(user => 
+        (!user.team || user.team !== this.selectedTeam?.name) &&
+        (user.name.toLowerCase().includes(this.memberSearchTerm.toLowerCase()) ||
+         user.email.toLowerCase().includes(this.memberSearchTerm.toLowerCase()))
       );
     }
-
-    this.availableMembers = filtered.map(member => ({
-      ...member,
-      selected: this.selectedMembers.some(m => m.id === member.id)
-    }));
   }
 
   toggleMemberSelection(member: User): void {
     member.selected = !member.selected;
-    
     if (member.selected) {
-      if (!this.selectedMembers.some(m => m.id === member.id)) {
-        this.selectedMembers.push({...member});
-      }
+      this.selectedMembers.push(member);
     } else {
       this.selectedMembers = this.selectedMembers.filter(m => m.id !== member.id);
     }
   }
 
-  async addSelectedMembers(): Promise<void> {
-    if (!this.selectedTeam || this.selectedMembers.length === 0) return;
-
+  addSelectedMembers(): void {
     this.isAddingMembers = true;
-
-    try {
-      const updatedTeam: Team = {
-        ...this.selectedTeam,
-        members: this.selectedTeam.members + this.selectedMembers.length,
-        membersList: [
-          ...(this.selectedTeam.membersList || []),
-          ...this.selectedMembers.map(m => m.id)
-        ]
-      };
-
-      for (const member of this.selectedMembers) {
-        const user = this.users.find(u => u.id === member.id);
-        if (user) {
-          user.team = this.selectedTeam.name;
-          await this.userService.updateUser(user);
-        }
+    
+    this.selectedMembers.forEach(member => {
+      const userIndex = this.users.findIndex(u => u.id === member.id);
+      if (userIndex !== -1) {
+        this.users[userIndex].team = this.selectedTeam?.name || '';
       }
-
-      await this.teamService.updateTeam(updatedTeam);
-      
-      const teamIndex = this.teams.findIndex(t => t.id === updatedTeam.id);
+    });
+    
+    if (this.selectedTeam) {
+      const teamIndex = this.teams.findIndex(t => t.id === this.selectedTeam?.id);
       if (teamIndex !== -1) {
-        this.teams[teamIndex] = updatedTeam;
+        this.teams[teamIndex].members += this.selectedMembers.length;
       }
-      
-      this.filteredTeams = this.teams;
-      this.loadUsers();
-      
-      this.showSuccessToast(`Added ${this.selectedMembers.length} members to team`);
-      this.closeModals();
-    } catch (error) {
-      this.showErrorToast('Failed to add members. Please try again.');
-      console.error('Error adding members:', error);
-    } finally {
-      this.isAddingMembers = false;
     }
-  }
-
-  getTeamMembers(teamName: string): User[] {
-    return this.users.filter(user => user.team === teamName);
-  }
-
-  getTeamProjects(teamName: string): any[] {
-    return [
-      {
-        name: 'Project 1',
-        startDate: new Date().toISOString(),
-        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        progress: 65,
-        priority: 'high'
-      },
-      {
-        name: 'Project 2',
-        startDate: new Date().toISOString(),
-        deadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-        progress: 30,
-        priority: 'medium'
-      }
-    ];
-  }
-
-  getTeamHierarchy(team: Team): TeamHierarchy[] {
-    const hierarchy: TeamHierarchy[] = [];
     
-    hierarchy.push({
-      id: team.id,
-      name: team.name,
-      level: 0,
-      members: team.members,
-      projects: team.projects
-    });
+    this.localStorage.saveUsers(this.users);
+    this.localStorage.saveTeams(this.teams);
     
-    const subTeams = this.getSubTeams(team.id);
-    subTeams.forEach(subTeam => {
-      hierarchy.push({
-        id: subTeam.id,
-        name: subTeam.name,
-        level: 1,
-        members: subTeam.members,
-        projects: subTeam.projects
-      });
-    });
-    
-    return hierarchy;
+    this.isAddingMembers = false;
+    this.showAddMemberModal = false;
   }
 
-  getUserByName(name: string): User | undefined {
-    return this.users.find(user => user.name === name);
+  // Helper methods
+  getDefaultUser(): User {
+    return {
+      id: '',
+      name: '',
+      username: '',
+      email: '',
+      password: '',
+      role: UserRole.USER,
+      status: 'active',
+      employeeType: 'full-time',
+      location: 'office'
+    };
   }
 
-  loadPerformanceData(): void {
-    this.teamLeads = this.users.filter(user => user.role === UserRole.LEAD).map(lead => ({
-      ...lead,
-      completionRate: Math.floor(Math.random() * 50) + 50,
-      projects: {
-        length: Math.floor(Math.random() * 5) + 1
-      }
-    }));
-    
-    this.topPerformers = [...this.users]
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 5)
-      .map(user => ({
-        ...user,
-        completionRate: Math.floor(Math.random() * 50) + 50
-      }));
+  getDefaultTeam(): Team {
+    return {
+      id: '',
+      name: '',
+      department: '',
+      members: 0,
+      projects: 0,
+      completionRate: 0,
+      parentTeam: null,
+      subTeams: []
+    };
+  }
+
+  generateId(): string {
+    return Math.random().toString(36).substr(2, 9);
   }
 
   getStatusClass(status: string): string {
     switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800';
-      case 'suspended':
-        return 'bg-red-100 text-red-800';
-      case 'on-leave':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'inactive': return 'bg-gray-100 text-gray-800';
+      case 'suspended': return 'bg-red-100 text-red-800';
+      case 'on-leave': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   }
 
   getPriorityClass(priority: string): string {
-    switch (priority) {
-      case 'high':
-        return 'bg-red-100 text-red-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+    switch (priority.toLowerCase()) {
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   }
 
@@ -731,6 +485,11 @@ export class UserManagement implements OnInit {
       stars.push('½');
     }
     
+    const emptyStars = 5 - stars.length;
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push('☆');
+    }
+    
     return stars;
   }
 
@@ -743,174 +502,175 @@ export class UserManagement implements OnInit {
     this.showTeamDetailsModal = false;
     this.showEditTeamModal = false;
     this.showAddMemberModal = false;
-    this.selectedMembers = [];
     this.userFormErrors = {};
     this.teamFormErrors = {};
-    this.isSubmitting = false;
-    this.isAddingMembers = false;
-    this.selectedUser = {
-      id: '',
-      email: '',
-      name: '',
-      username: '',
-      role: UserRole.USER,
-      status: 'active'
-    };
-    this.selectedTeam = null;
   }
 
-  private validateEmail(email: string): boolean {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  }
+  // Form validation
+  validateUserForm(user: User): boolean {
+    this.userFormErrors = {};
+    let isValid = true;
 
-  private showSuccessToast(message: string): void {
-    // Replace with your toast implementation
-    alert(message);
-  }
-
-  private showErrorToast(message: string): void {
-    // Replace with your toast implementation
-    alert(message);
-  }
-
-  private initCharts(): void {
-    this.initTeamCompletionChart();
-    this.initTaskTimelineChart();
-  }
-
-  private initTeamCompletionChart(): void {
-    const ctx = this.teamCompletionChartRef.nativeElement.getContext('2d');
-    
-    if (this.teamCompletionChart) {
-      this.teamCompletionChart.destroy();
+    if (!user.name) {
+      this.userFormErrors.name = 'Name is required';
+      isValid = false;
     }
 
-    this.teamCompletionChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: this.teams.slice(0, 5).map(team => team.name),
-        datasets: [{
-          label: 'Completion Rate %',
-          data: this.teams.slice(0, 5).map(team => team.completionRate),
-          backgroundColor: [
-            'rgba(79, 70, 229, 0.7)',
-            'rgba(99, 102, 241, 0.7)',
-            'rgba(129, 140, 248, 0.7)',
-            'rgba(165, 180, 252, 0.7)',
-            'rgba(199, 210, 254, 0.7)'
-          ],
-          borderColor: [
-            'rgba(79, 70, 229, 1)',
-            'rgba(99, 102, 241, 1)',
-            'rgba(129, 140, 248, 1)',
-            'rgba(165, 180, 252, 1)',
-            'rgba(199, 210, 254, 1)'
-          ],
-          borderWidth: 1
-        }]
+    if (!user.username) {
+      this.userFormErrors.username = 'Username is required';
+      isValid = false;
+    }
+
+    if (!user.email) {
+      this.userFormErrors.email = 'Email is required';
+      isValid = false;
+    } else if (!/^\S+@\S+\.\S+$/.test(user.email)) {
+      this.userFormErrors.email = 'Invalid email format';
+      isValid = false;
+    }
+
+    if (this.showAddUserModal && !user.password) {
+      this.userFormErrors.password = 'Password is required';
+      isValid = false;
+    }
+
+    if (!user.role) {
+      this.userFormErrors.role = 'Role is required';
+      isValid = false;
+    }
+
+    if (!user.status) {
+      this.userFormErrors.status = 'Status is required';
+      isValid = false;
+    }
+
+    return isValid;
+  }
+
+  validateTeamForm(team: Team): boolean {
+    this.teamFormErrors = {};
+    let isValid = true;
+
+    if (!team.name) {
+      this.teamFormErrors.name = 'Team name is required';
+      isValid = false;
+    }
+
+    if (!team.department) {
+      this.teamFormErrors.department = 'Department is required';
+      isValid = false;
+    }
+
+    if (this.showAddSubTeamModal && !team.parentTeam) {
+      this.teamFormErrors.parentTeam = 'Parent team is required';
+      isValid = false;
+    }
+
+    return isValid;
+  }
+
+  // Sample data for initial setup
+  private getSampleUsers(): User[] {
+    return [
+      {
+        id: '1',
+        name: 'John Doe',
+        username: 'johndoe',
+        email: 'john@example.com',
+        role: UserRole.USER,
+        status: 'active',
+        department: 'Development',
+        team: 'Frontend',
+        joinDate: '2022-01-15',
+        lastActive: new Date().toISOString(),
+        performance: {
+          taskCompletion: 95,
+          onTimeDelivery: 90,
+          qualityRating: 4.5,
+          projects: ['Project A', 'Project B']
+        }
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: 100,
-            ticks: {
-              callback: function(value) {
-                return value + '%';
-              }
-            }
-          }
-        },
-        plugins: {
-          legend: {
-            position: 'top',
-          },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                return context.parsed.y + '%';
-              }
-            }
-          }
+      {
+        id: '2',
+        name: 'Jane Smith',
+        username: 'janesmith',
+        email: 'jane@example.com',
+        role: UserRole.LEAD,
+        status: 'active',
+        department: 'Design',
+        team: 'UI/UX',
+        joinDate: '2021-11-10',
+        lastActive: new Date().toISOString(),
+        performance: {
+          taskCompletion: 85,
+          onTimeDelivery: 80,
+          qualityRating: 4.2,
+          projects: ['Project C']
         }
       }
-    });
+    ];
   }
 
-  private initTaskTimelineChart(): void {
-    const ctx = this.taskTimelineChartRef.nativeElement.getContext('2d');
-    
-    if (this.taskTimelineChart) {
-      this.taskTimelineChart.destroy();
-    }
-
-    const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'];
-    const completedTasks = [10, 25, 35, 50, 65, 80];
-    const totalTasks = [20, 40, 60, 80, 100, 120];
-
-    this.taskTimelineChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: weeks,
-        datasets: [
-          {
-            label: 'Completed Tasks',
-            data: completedTasks,
-            borderColor: 'rgba(79, 70, 229, 1)',
-            backgroundColor: 'rgba(79, 70, 229, 0.1)',
-            tension: 0.3,
-            fill: true
-          },
-          {
-            label: 'Total Tasks',
-            data: totalTasks,
-            borderColor: 'rgba(156, 163, 175, 1)',
-            backgroundColor: 'rgba(156, 163, 175, 0.1)',
-            borderDash: [5, 5],
-            tension: 0.3,
-            fill: true
-          }
-        ]
+  private getSampleTeams(): Team[] {
+    return [
+      {
+        id: '1',
+        name: 'Frontend',
+        department: 'Development',
+        lead: 'John Doe',
+        members: 5,
+        projects: 3,
+        completionRate: 75,
+        parentTeam: null,
+        subTeams: []
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: {
-            beginAtZero: true
-          }
-        },
-        plugins: {
-          legend: {
-            position: 'top',
-          },
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-          }
-        },
-        interaction: {
-          mode: 'nearest',
-          axis: 'x',
-          intersect: false
-        }
+      {
+        id: '2',
+        name: 'UI/UX',
+        department: 'Design',
+        lead: 'Jane Smith',
+        members: 3,
+        projects: 2,
+        completionRate: 90,
+        parentTeam: null,
+        subTeams: []
       }
-    });
+    ];
   }
 
-  ngOnDestroy(): void {
-    if (this.teamCompletionChart) {
-      this.teamCompletionChart.destroy();
-    }
-    if (this.taskTimelineChart) {
-      this.taskTimelineChart.destroy();
-    }
+  // Team member and project helpers
+  getTeamMembers(teamName: string): User[] {
+    return this.users.filter(user => user.team === teamName);
   }
 
-  ngAfterViewInit(): void {
-    this.initCharts();
+  getTeamProjects(teamName: string): any[] {
+    // This is a placeholder - in a real app, you'd have a projects service
+    return [
+      {
+        name: 'Website Redesign',
+        startDate: '2023-01-01',
+        deadline: '2023-06-30',
+        priority: 'High',
+        progress: 65
+      },
+      {
+        name: 'Mobile App',
+        startDate: '2023-02-15',
+        deadline: '2023-08-15',
+        priority: 'Medium',
+        progress: 30
+      }
+    ];
+  }
+
+  getUserByName(name: string): User | undefined {
+    return this.users.find(user => user.name === name);
+  }
+
+  addSubTeam(team: Team): void {
+    this.newSubTeam = this.getDefaultTeam();
+    this.newSubTeam.parentTeam = team.id;
+    this.newSubTeam.department = team.department;
+    this.showAddSubTeamModal = true;
   }
 }

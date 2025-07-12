@@ -1,5 +1,15 @@
 <!-- backlogs.html -->
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <!-- Toast Notification -->
+  <div *ngIf="showToast" class="fixed top-4 right-4 z-50">
+    <ngb-toast [autohide]="true" [delay]="3000" (hidden)="showToast = false" 
+               [class.bg-green-500]="toastType === 'success'"
+               [class.bg-red-500]="toastType === 'error'"
+               class="text-white">
+      {{ toastMessage }}
+    </ngb-toast>
+  </div>
+
   <!-- Header -->
   <div class="mb-6">
     <h1 class="text-2xl font-bold text-gray-900">Backlogs</h1>
@@ -9,50 +19,54 @@
   <!-- Sprint Selector -->
   <div class="bg-white shadow rounded-lg mb-6 p-4">
     <div class="flex items-center justify-between">
-      <div>
+      <div class="w-full">
         <label for="sprint" class="block text-sm font-medium text-gray-700 mb-1">Current Sprint</label>
-        <select 
-          id="sprint" 
-          [(ngModel)]="selectedSprint"
-          class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-          <option *ngFor="let sprint of sprints" [value]="sprint.id">
-            {{sprint.name}} ({{sprint.startDate}} to {{sprint.endDate}})
-            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ml-2"
-                  [ngClass]="getSprintStatusColor(sprint.status)">
-              {{sprint.status}}
-            </span>
-          </option>
-        </select>
+        <div class="flex space-x-3">
+          <select 
+            id="sprint" 
+            [(ngModel)]="selectedSprint" 
+            (change)="onSprintChange()"
+            class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+            <option *ngFor="let sprint of sprints" [value]="sprint.id">
+              {{sprint.name}} ({{sprint.startDate | date:'MMM d'}} - {{sprint.endDate | date:'MMM d'}})
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ml-2"
+                    [ngClass]="getSprintStatusColor(sprint.status)">
+                {{sprint.status}}
+              </span>
+            </option>
+          </select>
+          <button 
+            type="button" 
+            (click)="openManageSprintModal()"
+            class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none">
+            Manage Sprints
+          </button>
+        </div>
       </div>
-      <button 
-        type="button" 
-        (click)="openManageSprintModal()"
-        class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none">
-        Manage Sprints
-      </button>
     </div>
   </div>
 
   <!-- Project Filter -->
   <div class="bg-white shadow rounded-lg mb-6 p-4">
     <div class="flex items-center justify-between">
-      <div>
+      <div class="w-full">
         <label for="project" class="block text-sm font-medium text-gray-700 mb-1">Project</label>
-        <select 
-          id="project" 
-          [(ngModel)]="selectedProject" 
-          class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-          <option value="all">All Projects</option>
-          <option *ngFor="let project of projects" [value]="project.id">{{project.name}}</option>
-        </select>
-      </div>
-      <div class="flex space-x-3">
-        <button 
-          type="button" 
-          (click)="openAddTaskModal()"
-          class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none">
-          Add Task
-        </button>
+        <div class="flex space-x-3">
+          <select 
+            id="project" 
+            [(ngModel)]="selectedProject" 
+            (change)="onProjectChange()"
+            class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+            <option value="all">All Projects</option>
+            <option *ngFor="let project of projects" [value]="project.id">{{project.name}}</option>
+          </select>
+          <button 
+            type="button" 
+            (click)="openAddTaskModal()"
+            class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none">
+            Add Task
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -72,7 +86,7 @@
         <li *ngFor="let task of currentSprintTasks" class="py-4">
           <div class="flex items-start">
             <div class="flex-shrink-0 pt-1">
-              <input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+              <input type="checkbox" [checked]="task.status === 'done'" (change)="task.status = task.status === 'done' ? 'todo' : 'done'" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
             </div>
             <div class="ml-3 flex-1 min-w-0">
               <div class="flex items-center justify-between">
@@ -92,10 +106,18 @@
               <div class="mt-2 flex items-center text-sm text-gray-500">
                 <span class="mr-3">{{task.assignee || 'Unassigned'}}</span>
                 <span class="mr-3">Due {{task.dueDate | date:'MMM d'}}</span>
-                <span class="capitalize">{{task.tags[0]}}</span>
+                <span class="capitalize">{{task?.tags?.[0]}}</span>
               </div>
             </div>
             <div class="ml-4 flex-shrink-0 flex space-x-2">
+              <button 
+                (click)="openViewTaskModal(task)"
+                type="button" class="inline-flex items-center p-1 border border-gray-300 rounded-full shadow-sm text-gray-400 hover:text-gray-500 focus:outline-none">
+                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
               <button 
                 (click)="openEditTaskModal(task)"
                 type="button" class="inline-flex items-center p-1 border border-gray-300 rounded-full shadow-sm text-gray-400 hover:text-gray-500 focus:outline-none">
@@ -128,16 +150,20 @@
           <thead class="bg-gray-50">
             <tr>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estimate</th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr *ngFor="let task of productBacklogTasks">
+            <tr *ngFor="let task of filteredProductBacklogTasks">
               <td class="px-6 py-4">
                 <div class="text-sm font-medium text-gray-900">{{task.title}}</div>
                 <div class="text-sm text-gray-500">{{task.description}}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-gray-900">{{getProjectName(task.projectId)}}</div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span 
@@ -156,10 +182,25 @@
                   Promote
                 </button>
                 <button 
+                  (click)="openViewTaskModal(task)"
+                  class="text-blue-600 hover:text-blue-900 mr-3">
+                  View
+                </button>
+                <button 
                   (click)="openEditTaskModal(task)"
-                  class="text-blue-600 hover:text-blue-900">
+                  class="text-blue-600 hover:text-blue-900 mr-3">
                   Edit
                 </button>
+                <button 
+                  (click)="currentTask = task; deleteTask()"
+                  class="text-red-600 hover:text-red-900">
+                  Delete
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="filteredProductBacklogTasks.length === 0">
+              <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
+                No tasks found matching your filters
               </td>
             </tr>
           </tbody>
@@ -179,63 +220,125 @@
         <div>
           <div class="mt-3 text-center sm:mt-0 sm:text-left">
             <h3 class="text-lg leading-6 font-medium text-gray-900">Add New Task</h3>
-            <div class="mt-2 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div class="sm:col-span-6">
-                <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
-                <input type="text" id="title" [(ngModel)]="newTask.title" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-              </div>
+            <form #addTaskForm="ngForm" (ngSubmit)="saveTask(addTaskForm)">
+              <div class="mt-2 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                <div class="sm:col-span-6">
+                  <label for="title" class="block text-sm font-medium text-gray-700">Title *</label>
+                  <input 
+                    type="text" 
+                    id="title" 
+                    name="title"
+                    [(ngModel)]="newTask.title" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
 
-              <div class="sm:col-span-6">
-                <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
-                <textarea id="description" [(ngModel)]="newTask.description" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
-              </div>
+                <div class="sm:col-span-6">
+                  <label for="description" class="block text-sm font-medium text-gray-700">Description *</label>
+                  <textarea 
+                    id="description" 
+                    name="description"
+                    [(ngModel)]="newTask.description" 
+                    rows="3" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="project" class="block text-sm font-medium text-gray-700">Project</label>
-                <select id="project" [(ngModel)]="newTask.projectId" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                  <option value="">Select Project</option>
-                  <option *ngFor="let project of projects" [value]="project.id">{{project.name}}</option>
-                </select>
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="project" class="block text-sm font-medium text-gray-700">Project *</label>
+                  <select 
+                    id="project" 
+                    name="project"
+                    [(ngModel)]="newTask.projectId" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <option value="">Select Project</option>
+                    <option *ngFor="let project of projects" [value]="project.id">{{project.name}}</option>
+                  </select>
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="priority" class="block text-sm font-medium text-gray-700">Priority</label>
-                <select id="priority" [(ngModel)]="newTask.priority" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                  <option value="high">High</option>
-                  <option value="medium" selected>Medium</option>
-                  <option value="low">Low</option>
-                </select>
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="priority" class="block text-sm font-medium text-gray-700">Priority *</label>
+                  <select 
+                    id="priority" 
+                    name="priority"
+                    [(ngModel)]="newTask.priority" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <option value="high">High</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="dueDate" class="block text-sm font-medium text-gray-700">Due Date</label>
-                <input type="date" id="dueDate" [(ngModel)]="newTask.dueDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="dueDate" class="block text-sm font-medium text-gray-700">Due Date *</label>
+                  <input 
+                    type="date" 
+                    id="dueDate" 
+                    name="dueDate"
+                    [(ngModel)]="newTask.dueDate" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="storyPoints" class="block text-sm font-medium text-gray-700">Story Points</label>
-                <input type="number" id="storyPoints" [(ngModel)]="newTask.storyPoints" min="1" max="20" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="storyPoints" class="block text-sm font-medium text-gray-700">Story Points *</label>
+                  <input 
+                    type="number" 
+                    id="storyPoints" 
+                    name="storyPoints"
+                    [(ngModel)]="newTask.storyPoints" 
+                    min="1" 
+                    max="20" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="estimatedHours" class="block text-sm font-medium text-gray-700">Estimated Hours</label>
-                <input type="number" id="estimatedHours" [(ngModel)]="newTask.estimatedHours" min="1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="estimatedHours" class="block text-sm font-medium text-gray-700">Estimated Hours *</label>
+                  <input 
+                    type="number" 
+                    id="estimatedHours" 
+                    name="estimatedHours"
+                    [(ngModel)]="newTask.estimatedHours" 
+                    min="1" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="tags" class="block text-sm font-medium text-gray-700">Tags (comma separated)</label>
-                <input type="text" id="tags" (change)="onTagsInputChange($event)" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                <div class="sm:col-span-3">
+                  <label for="tags" class="block text-sm font-medium text-gray-700">Tags (comma separated)</label>
+                  <input 
+                    type="text" 
+                    id="tags" 
+                    (change)="onTagsInputChange($event, newTask)"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
               </div>
-            </div>
+              <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                <button 
+                  type="submit" 
+                  [disabled]="isSubmitting || !addTaskForm.valid"
+                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm">
+                  <span *ngIf="isSubmitting" class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </span>
+                  <span *ngIf="!isSubmitting">Save</span>
+                </button>
+                <button 
+                  type="button" 
+                  (click)="addTaskModalOpen = false" 
+                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
-        <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-          <button type="button" (click)="saveTask()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-            Save
-          </button>
-          <button type="button" (click)="addTaskModalOpen = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
-            Cancel
-          </button>
         </div>
       </div>
     </div>
@@ -252,83 +355,249 @@
         <div>
           <div class="mt-3 text-center sm:mt-0 sm:text-left">
             <h3 class="text-lg leading-6 font-medium text-gray-900">Edit Task</h3>
-            <div class="mt-2 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div class="sm:col-span-6">
-                <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
-                <input type="text" id="title" [(ngModel)]="currentTask!.title" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-              </div>
+            <form #editTaskForm="ngForm" (ngSubmit)="saveTask(editTaskForm)">
+              <div class="mt-2 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                <div class="sm:col-span-6">
+                  <label for="title" class="block text-sm font-medium text-gray-700">Title <span class="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    id="title" 
+                    name="title"
+                    [(ngModel)]="currentTask!.title" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
 
-              <div class="sm:col-span-6">
-                <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
-                <textarea id="description" [(ngModel)]="currentTask!.description" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
-              </div>
+                <div class="sm:col-span-6">
+                  <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                  <textarea 
+                    id="description" 
+                    name="description"
+                    [(ngModel)]="currentTask!.description" 
+                    rows="3" 
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="project" class="block text-sm font-medium text-gray-700">Project</label>
-                <select id="project" [(ngModel)]="currentTask!.projectId" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                  <option value="">Select Project</option>
-                  <option *ngFor="let project of projects" [value]="project.id">{{project.name}}</option>
-                </select>
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="project" class="block text-sm font-medium text-gray-700">Project <span class="text-red-500">*</span></label>
+                  <select 
+                    id="project" 
+                    name="project"
+                    [(ngModel)]="currentTask!.projectId" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <option value="">Select Project</option>
+                    <option *ngFor="let project of projects" [value]="project.id">{{project.name}}</option>
+                  </select>
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="assignee" class="block text-sm font-medium text-gray-700">Assignee</label>
-                <select id="assignee" [(ngModel)]="currentTask!.assignee" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                  <option value="">Unassigned</option>
-                  <option *ngFor="let member of teamMembers" [value]="member.name">{{member.name}}</option>
-                </select>
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="assignee" class="block text-sm font-medium text-gray-700">Assignee <span class="text-red-500">*</span></label>
+                  <select 
+                    id="assignee" 
+                    name="assignee"
+                    [(ngModel)]="currentTask!.assignee" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <option value="">Unassigned</option>
+                    <option *ngFor="let member of teamMembers" [value]="member.name">{{member.name}}</option>
+                  </select>
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="priority" class="block text-sm font-medium text-gray-700">Priority</label>
-                <select id="priority" [(ngModel)]="currentTask!.priority" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="priority" class="block text-sm font-medium text-gray-700">Priority <span class="text-red-500">*</span></label>
+                  <select 
+                    id="priority" 
+                    name="priority"
+                    [(ngModel)]="currentTask!.priority" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="dueDate" class="block text-sm font-medium text-gray-700">Due Date</label>
-                <input type="date" id="dueDate" [(ngModel)]="currentTask!.dueDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="dueDate" class="block text-sm font-medium text-gray-700">Due Date <span class="text-red-500">*</span></label>
+                  <input 
+                    type="date" 
+                    id="dueDate" 
+                    name="dueDate"
+                    [(ngModel)]="currentTask!.dueDate" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="storyPoints" class="block text-sm font-medium text-gray-700">Story Points</label>
-                <input type="number" id="storyPoints" [(ngModel)]="currentTask!.storyPoints" min="1" max="20" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="storyPoints" class="block text-sm font-medium text-gray-700">Story Points <span class="text-red-500">*</span></label>
+                  <input 
+                    type="number" 
+                    id="storyPoints" 
+                    name="storyPoints"
+                    [(ngModel)]="currentTask!.storyPoints" 
+                    min="1" 
+                    max="20" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="estimatedHours" class="block text-sm font-medium text-gray-700">Estimated Hours</label>
-                <input type="number" id="estimatedHours" [(ngModel)]="currentTask!.estimatedHours" min="1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="estimatedHours" class="block text-sm font-medium text-gray-700">Estimated Hours <span class="text-red-500">*</span></label>
+                  <input 
+                    type="number" 
+                    id="estimatedHours" 
+                    name="estimatedHours"
+                    [(ngModel)]="currentTask!.estimatedHours" 
+                    min="1" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                <select id="status" [(ngModel)]="currentTask!.status" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                  <option value="todo">To Do</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="review">Review</option>
-                  <option value="done">Done</option>
-                </select>
-              </div>
+                <div class="sm:col-span-3">
+                  <label for="status" class="block text-sm font-medium text-gray-700">Status <span class="text-red-500">*</span></label>
+                  <select 
+                    id="status" 
+                    name="status"
+                    [(ngModel)]="currentTask!.status" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <option value="todo">To Do</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="review">Review</option>
+                    <option value="done">Done</option>
+                  </select>
+                </div>
 
-              <div class="sm:col-span-3">
-                <label for="tags" class="block text-sm font-medium text-gray-700">Tags (comma separated)</label>
-                <input type="text" id="tags" [ngModel]="currentTask?.tags?.join(',')" (change)="onTagsInputChange($event)" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                <div class="sm:col-span-3">
+                  <label for="tags" class="block text-sm font-medium text-gray-700">Tags (comma separated)</label>
+                  <input 
+                    type="text" 
+                    id="tags" 
+                    [ngModel]="currentTask?.tags?.join(',')" 
+                    (change)="onTagsInputChange($event, currentTask!)"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+              </div>
+              <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                <button 
+                  type="submit" 
+                  [disabled]="isSubmitting || !editTaskForm.valid"
+                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm">
+                  <span *ngIf="isSubmitting" class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </span>
+                  <span *ngIf="!isSubmitting">Save</span>
+                </button>
+                <button 
+                  type="button" 
+                  (click)="deleteTask()" 
+                  class="mt-3 w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                  Delete
+                </button>
+                <button 
+                  type="button" 
+                  (click)="editTaskModalOpen = false" 
+                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Task Modal -->
+  <div *ngIf="viewTaskModalOpen" class="fixed inset-0 overflow-y-auto z-50">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+      </div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+        <div>
+          <div class="mt-3 text-center sm:mt-0 sm:text-left">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">{{currentTask?.title}}</h3>
+            <div class="mt-2">
+              <p class="text-sm text-gray-500">{{currentTask?.description}}</p>
+              
+              <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Project</p>
+                  <p class="text-sm text-gray-900">{{getProjectName(currentTask?.projectId || '')}}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Assignee</p>
+                  <p class="text-sm text-gray-900">{{currentTask?.assignee || 'Unassigned'}}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Due Date</p>
+                  <p class="text-sm text-gray-900">{{currentTask?.dueDate | date:'MMM d, y'}}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Status</p>
+                  <span 
+                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                    [ngClass]="getStatusColor(currentTask?.status || '')">
+                    {{currentTask?.status}}
+                  </span>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Priority</p>
+                  <span 
+                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                    [ngClass]="getPriorityColor(currentTask?.priority || '')">
+                    {{currentTask?.priority}}
+                  </span>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Story Points</p>
+                  <p class="text-sm text-gray-900">{{currentTask?.storyPoints}}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Estimated Hours</p>
+                  <p class="text-sm text-gray-900">{{currentTask?.estimatedHours}}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Tags</p>
+                  <div class="flex flex-wrap gap-1 mt-1">
+                    <span *ngFor="let tag of currentTask?.tags" class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
+                      {{tag}}
+                    </span>
+                  </div>
+                </div>
+                <div *ngIf="currentTask?.sprintId" class="sm:col-span-2">
+                  <p class="text-sm font-medium text-gray-500">Sprint</p>
+                  <p class="text-sm text-gray-900">{{getSprintName(currentTask?.sprintId || '')}}</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
         <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-          <button type="button" (click)="saveTask()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-            Save
+          <button 
+            type="button" 
+            (click)="openEditTaskModal(currentTask!)"
+            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+            Edit
           </button>
-          <button type="button" (click)="deleteTask()" class="mt-3 w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+          <button 
+            type="button" 
+            (click)="deleteTask()"
+            class="mt-3 w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
             Delete
           </button>
-          <button type="button" (click)="editTaskModalOpen = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
-            Cancel
+          <button 
+            type="button" 
+            (click)="viewTaskModalOpen = false" 
+            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+            Close
           </button>
         </div>
       </div>
@@ -342,61 +611,226 @@
         <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
       </div>
       <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-      <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+      <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
         <div>
           <div class="mt-3 text-center sm:mt-0 sm:text-left">
             <h3 class="text-lg leading-6 font-medium text-gray-900">Manage Sprints</h3>
             <div class="mt-2">
               <h4 class="text-md font-medium text-gray-700 mb-2">Current Sprints</h4>
-              <ul class="divide-y divide-gray-200">
-                <li *ngFor="let sprint of sprints" class="py-3">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-sm font-medium text-gray-900">{{sprint.name}}</p>
-                      <p class="text-sm text-gray-500">{{sprint.startDate}} to {{sprint.endDate}}</p>
-                    </div>
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                          [ngClass]="getSprintStatusColor(sprint.status)">
-                      {{sprint.status}}
-                    </span>
-                  </div>
-                </li>
-              </ul>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr *ngFor="let sprint of sprints">
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{sprint.name}}</div>
+                        <div class="text-sm text-gray-500">{{sprint.goal}}</div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{sprint.startDate | date:'MMM d'}} - {{sprint.endDate | date:'MMM d'}}</div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                              [ngClass]="getSprintStatusColor(sprint.status)">
+                          {{sprint.status}}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button 
+                          (click)="openEditSprintModal(sprint)"
+                          class="text-blue-600 hover:text-blue-900 mr-3">
+                          Edit
+                        </button>
+                        <button 
+                          (click)="deleteSprint(sprint)"
+                          class="text-red-600 hover:text-red-900">
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
               <div class="mt-6">
                 <h4 class="text-md font-medium text-gray-700 mb-2">Create New Sprint</h4>
-                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                  <div class="sm:col-span-6">
-                    <label for="sprintName" class="block text-sm font-medium text-gray-700">Sprint Name</label>
-                    <input type="text" id="sprintName" [(ngModel)]="newSprint.name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                  </div>
+                <form #createSprintForm="ngForm" (ngSubmit)="createSprint(createSprintForm)">
+                  <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-6">
+                      <label for="sprintName" class="block text-sm font-medium text-gray-700">Sprint Name <span class="text-red-500">*</span></label>
+                      <input 
+                        type="text" 
+                        id="sprintName" 
+                        name="name"
+                        [(ngModel)]="newSprint.name" 
+                        required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
 
-                  <div class="sm:col-span-3">
-                    <label for="startDate" class="block text-sm font-medium text-gray-700">Start Date</label>
-                    <input type="date" id="startDate" [(ngModel)]="newSprint.startDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                  </div>
+                    <div class="sm:col-span-3">
+                      <label for="startDate" class="block text-sm font-medium text-gray-700">Start Date <span class="text-red-500">*</span></label>
+                      <input 
+                        type="date" 
+                        id="startDate" 
+                        name="startDate"
+                        [(ngModel)]="newSprint.startDate" 
+                        required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
 
-                  <div class="sm:col-span-3">
-                    <label for="endDate" class="block text-sm font-medium text-gray-700">End Date</label>
-                    <input type="date" id="endDate" [(ngModel)]="newSprint.endDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                  </div>
+                    <div class="sm:col-span-3">
+                      <label for="endDate" class="block text-sm font-medium text-gray-700">End Date <span class="text-red-500">*</span></label>
+                      <input 
+                        type="date" 
+                        id="endDate" 
+                        name="endDate"
+                        [(ngModel)]="newSprint.endDate" 
+                        required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
 
-                  <div class="sm:col-span-6">
-                    <label for="goal" class="block text-sm font-medium text-gray-700">Sprint Goal</label>
-                    <textarea id="goal" [(ngModel)]="newSprint.goal" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                    <div class="sm:col-span-6">
+                      <label for="goal" class="block text-sm font-medium text-gray-700">Sprint Goal <span class="text-red-500">*</span></label>
+                      <textarea
+                        id="goal"
+                        name="goal"
+                        [(ngModel)]="newSprint.goal" 
+                        rows="2" 
+                        required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                    </div>
                   </div>
-                </div>
+                  <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                    <button 
+                      type="submit" 
+                      [disabled]="isSubmitting || !createSprintForm.valid"
+                      class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm">
+                      <span *ngIf="isSubmitting" class="flex items-center">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Creating...
+                      </span>
+                      <span *ngIf="!isSubmitting">Create Sprint</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      (click)="manageSprintModalOpen = false" 
+                      class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+                      Close
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>
         </div>
-        <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-          <button type="button" (click)="createSprint()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-            Create Sprint
-          </button>
-          <button type="button" (click)="manageSprintModalOpen = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
-            Close
-          </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Sprint Modal -->
+  <div *ngIf="editSprintModalOpen" class="fixed inset-0 overflow-y-auto z-50">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+      </div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+        <div>
+          <div class="mt-3 text-center sm:mt-0 sm:text-left">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Edit Sprint</h3>
+            <form #editSprintForm="ngForm" (ngSubmit)="updateSprint(editSprintForm)">
+              <div class="mt-2 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                <div class="sm:col-span-6">
+                  <label for="editSprintName" class="block text-sm font-medium text-gray-700">Sprint Name <span class="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    id="editSprintName" 
+                    name="name"
+                    [(ngModel)]="editingSprint.name" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+
+                <div class="sm:col-span-3">
+                  <label for="editStartDate" class="block text-sm font-medium text-gray-700">Start Date <span class="text-red-500">*</span></label>
+                  <input 
+                    type="date" 
+                    id="editStartDate" 
+                    name="startDate"
+                    [(ngModel)]="editingSprint.startDate" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+
+                <div class="sm:col-span-3">
+                  <label for="editEndDate" class="block text-sm font-medium text-gray-700">End Date <span class="text-red-500">*</span></label>
+                  <input 
+                    type="date" 
+                    id="editEndDate" 
+                    name="endDate"
+                    [(ngModel)]="editingSprint.endDate" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+
+                <div class="sm:col-span-3">
+                  <label for="editStatus" class="block text-sm font-medium text-gray-700">Status <span class="text-red-500">*</span></label>
+                  <select 
+                    id="editStatus" 
+                    name="status"
+                    [(ngModel)]="editingSprint.status" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <option value="planned">Planned</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+
+                <div class="sm:col-span-6">
+                  <label for="editGoal" class="block text-sm font-medium text-gray-700">Sprint Goal <span class="text-red-500">*</span></label>
+                  <textarea 
+                    id="editGoal" 
+                    name="goal"
+                    [(ngModel)]="editingSprint.goal" 
+                    rows="2" 
+                    required
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                </div>
+              </div>
+              <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                <button 
+                  type="submit" 
+                  [disabled]="isSubmitting || !editSprintForm.valid"
+                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm">
+                  <span *ngIf="isSubmitting" class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </span>
+                  <span *ngIf="!isSubmitting">Save</span>
+                </button>
+                <button 
+                  type="button" 
+                  (click)="editSprintModalOpen = false" 
+                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
