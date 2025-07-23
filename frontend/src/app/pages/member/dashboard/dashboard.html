@@ -1,0 +1,397 @@
+<div class="min-h-full">
+  <!-- Header Section -->
+  <div class="mb-8 flex justify-between items-center">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-800">My Dashboard</h1>
+      <p class="text-lg text-gray-600 mt-2">Overview of your tasks and projects</p>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-indigo-500">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500">Tasks Completed</p>
+          <p class="text-2xl font-bold mt-1">{{ completedTasks$ | async }}</p>
+        </div>
+        <div class="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
+          <i class="fas fa-check-circle text-indigo-600 text-xl"></i>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 border-t border-gray-100">
+        <p class="text-sm text-gray-500">
+          <span class="text-green-500"><i class="fas fa-arrow-up mr-1"></i>12%</span> from last week
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-blue-500">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500">In Progress</p>
+          <p class="text-2xl font-bold mt-1">{{ inProgressTasks$ | async }}</p>
+        </div>
+        <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+          <i class="fas fa-spinner text-blue-600 text-xl"></i>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 border-t border-gray-100">
+        <p class="text-sm text-gray-500">
+          <span class="text-blue-500"><i class="fas fa-arrow-up mr-1"></i>5%</span> from last week
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-yellow-500">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500">Pending Review</p>
+          <p class="text-2xl font-bold mt-1">{{ pendingReviewTasks$ | async }}</p>
+        </div>
+        <div class="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+          <i class="fas fa-exclamation-circle text-yellow-600 text-xl"></i>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 border-t border-gray-100">
+        <p class="text-sm text-gray-500">
+          <span class="text-yellow-500"><i class="fas fa-arrow-down mr-1"></i>3%</span> from last week
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-red-500">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500">Overdue</p>
+          <p class="text-2xl font-bold mt-1">{{ overdueTasks$ | async }}</p>
+        </div>
+        <div class="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+          <i class="fas fa-clock text-red-600 text-xl"></i>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 border-t border-gray-100">
+        <p class="text-sm text-gray-500">
+          <span class="text-red-500"><i class="fas fa-arrow-up mr-1"></i>8%</span> from last week
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Boards Section -->
+  <div class="bg-white rounded-xl shadow-lg mb-8">
+    <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+      <h2 class="text-xl font-semibold">Task Boards</h2>
+      <div class="flex space-x-3">
+        <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition-colors">
+          <i class="fas fa-filter mr-2"></i> Filter
+        </button>
+      </div>
+    </div>
+    
+    <div class="p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- To Do Column -->
+        <div cdkDropList id="todoList" [cdkDropListData]="getTasksForBoard('website', 'todo')" (cdkDropListDropped)="drop($event)"
+             class="bg-gray-50 rounded-lg p-4">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-medium text-gray-700">To Do</h3>
+            <span class="bg-gray-200 text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">
+              {{ getTasksForBoard('website', 'todo').length }}
+            </span>
+          </div>
+          <div class="space-y-3">
+            <div *ngFor="let task of getTasksForBoard('website', 'todo')" cdkDrag
+                 class="bg-white rounded-lg p-4 shadow border border-gray-200 hover:shadow-md transition-shadow">
+              <div class="flex justify-between">
+                <h4 class="font-medium">{{ task.title }}</h4>
+                <span class="h-3 w-3 rounded-full bg-gray-300 shadow-sm"></span>
+              </div>
+              <p class="text-sm text-gray-600 mt-2">{{ task.description }}</p>
+              <div class="flex justify-between items-center mt-3">
+                <span class="text-xs" [ngClass]="{'text-red-500': isOverdue(task.dueDate), 'text-gray-500': !isOverdue(task.dueDate)}">
+                  Due {{ formatDate(task.dueDate) }}
+                </span>
+                <div class="flex -space-x-1">
+                  <div class="h-6 w-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center shadow-sm">
+                    <span class="text-xs text-indigo-600">{{ task.assignee.substring(0, 1) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- In Progress Column -->
+        <div cdkDropList id="inProgressList" [cdkDropListData]="getTasksForBoard('website', 'in-progress')" (cdkDropListDropped)="drop($event)"
+             class="bg-blue-50 rounded-lg p-4">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-medium text-blue-700">In Progress</h3>
+            <span class="bg-blue-200 text-blue-700 text-xs font-semibold px-2 py-1 rounded-full">
+              {{ getTasksForBoard('website', 'in-progress').length }}
+            </span>
+          </div>
+          <div class="space-y-3">
+            <div *ngFor="let task of getTasksForBoard('website', 'in-progress')" cdkDrag
+                 class="bg-white rounded-lg p-4 shadow border border-blue-200 hover:shadow-md transition-shadow">
+              <div class="flex justify-between">
+                <h4 class="font-medium">{{ task.title }}</h4>
+                <span class="h-3 w-3 rounded-full bg-blue-500 shadow-sm"></span>
+              </div>
+              <p class="text-sm text-gray-600 mt-2">{{ task.description }}</p>
+              <div class="flex justify-between items-center mt-3">
+                <span class="text-xs text-blue-600">Due {{ formatDate(task.dueDate) }}</span>
+                <div class="flex -space-x-1">
+                  <div class="h-6 w-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center shadow-sm">
+                    <span class="text-xs text-indigo-600">{{ task.assignee.substring(0, 1) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Review Column -->
+        <div cdkDropList id="reviewList" [cdkDropListData]="getTasksForBoard('website', 'review')" (cdkDropListDropped)="drop($event)"
+             class="bg-yellow-50 rounded-lg p-4">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-medium text-yellow-700">Review</h3>
+            <span class="bg-yellow-200 text-yellow-700 text-xs font-semibold px-2 py-1 rounded-full">
+              {{ getTasksForBoard('website', 'review').length }}
+            </span>
+          </div>
+          <div class="space-y-3">
+            <div *ngFor="let task of getTasksForBoard('website', 'review')" cdkDrag
+                 class="bg-white rounded-lg p-4 shadow border border-yellow-200 hover:shadow-md transition-shadow">
+              <div class="flex justify-between">
+                <h4 class="font-medium">{{ task.title }}</h4>
+                <span class="h-3 w-3 rounded-full bg-yellow-500 shadow-sm"></span>
+              </div>
+              <p class="text-sm text-gray-600 mt-2">{{ task.description }}</p>
+              <div class="flex justify-between items-center mt-3">
+                <span class="text-xs text-yellow-600">Due {{ formatDate(task.dueDate) }}</span>
+                <div class="flex -space-x-1">
+                  <div class="h-6 w-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center shadow-sm">
+                    <span class="text-xs text-indigo-600">{{ task.assignee.substring(0, 1) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Done Column -->
+        <div cdkDropList id="doneList" [cdkDropListData]="getTasksForBoard('website', 'done')" (cdkDropListDropped)="drop($event)"
+             class="bg-green-50 rounded-lg p-4">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-medium text-green-700">Done</h3>
+            <span class="bg-green-200 text-green-700 text-xs font-semibold px-2 py-1 rounded-full">
+              {{ getTasksForBoard('website', 'done').length }}
+            </span>
+          </div>
+          <div class="space-y-3">
+            <div *ngFor="let task of getTasksForBoard('website', 'done')" cdkDrag
+                 class="bg-white rounded-lg p-4 shadow border border-green-200 hover:shadow-md transition-shadow">
+              <div class="flex justify-between">
+                <h4 class="font-medium">{{ task.title }}</h4>
+                <span class="h-3 w-3 rounded-full bg-green-500 shadow-sm"></span>
+              </div>
+              <p class="text-sm text-gray-600 mt-2">{{ task.description }}</p>
+              <div class="flex justify-between items-center mt-3">
+                <span class="text-xs text-green-600">Completed {{ formatDate(task.completionDate || task.dueDate) }}</span>
+                <div class="flex -space-x-1">
+                  <div class="h-6 w-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center shadow-sm">
+                    <span class="text-xs text-indigo-600">{{ task.assignee.substring(0, 1) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Tasks Section -->
+  <div class="bg-white rounded-xl shadow-lg mb-8">
+    <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+      <h2 class="text-xl font-semibold">Recent Tasks</h2>
+      <button (click)="toggleViewAll()" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium transition-colors">
+        {{ showAll ? 'Show Less' : 'View All' }}
+      </button>
+    </div>
+    
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr *ngFor="let task of (showAll ? allTasks$ : paginatedTasks$) | async" class="hover:bg-gray-50 transition-colors">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="font-medium">{{ task.title }}</div>
+              <div class="text-sm text-gray-500 mt-1">{{ task.description }}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span>{{ task.project }}</span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span [class.text-red-500]="isOverdue(task.dueDate)">
+                {{ task.dueDate | date:'MMM d, y' }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full" 
+                    [ngClass]="getStatusClass(task.status)">
+                {{ getStatusText(task.status) }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <button (click)="openTaskDetails(task)" class="text-indigo-600 hover:text-indigo-900 transition-colors text-sm">
+                <i class="fas fa-eye mr-1"></i> View
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between px-6 py-4 border-t border-gray-200" *ngIf="((allTasks$ | async)?.length || 0) > pageSize">
+      <div class="text-sm text-gray-500">
+        Showing <span class="font-medium">{{ (currentPage - 1) * pageSize + 1 }}</span> to 
+        <span class="font-medium">{{ Math.min(currentPage * pageSize, (allTasks$ | async)?.length || 0) }}</span> of 
+        <span class="font-medium">{{ (allTasks$ | async)?.length || 0 }}</span> tasks
+      </div>
+      <div class="flex space-x-2">
+        <button (click)="previousPage()" [disabled]="currentPage === 1" 
+                class="px-3 py-1 border rounded text-sm font-medium"
+                [class.bg-indigo-600 text-white]="currentPage !== 1"
+                [class.bg-gray-200 text-gray-500 cursor-not-allowed]="currentPage === 1">
+          Previous
+        </button>
+        <button (click)="nextPage()" [disabled]="currentPage * pageSize >= ((allTasks$ | async)?.length || 0)"
+                class="px-3 py-1 border rounded text-sm font-medium"
+                [class.bg-indigo-600 text-white]="currentPage * pageSize < ((allTasks$ | async)?.length || 0)"
+                [class.bg-gray-200 text-gray-500 cursor-not-allowed]="currentPage * pageSize >= ((allTasks$ | async)?.length || 0)">
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activity Section -->
+  <div class="bg-white rounded-xl shadow-lg">
+    <div class="p-6 border-b border-gray-200">
+      <h2 class="text-xl font-semibold">Recent Activity</h2>
+    </div>
+    <div class="p-6">
+      <div class="space-y-4">
+        <div *ngFor="let activity of recentActivities$ | async" class="flex">
+          <div class="flex-shrink-0 mr-4">
+            <div class="h-10 w-10 rounded-full flex items-center justify-center shadow-md"
+                [ngClass]="{
+                  'bg-indigo-100': activity.type === 'completed',
+                  'bg-green-100': activity.type === 'comment',
+                  'bg-blue-100': activity.type === 'assigned'
+                }">
+              <i class="fas text-lg"
+                [ngClass]="{
+                  'fa-check text-indigo-600': activity.type === 'completed',
+                  'fa-comment-alt text-green-600': activity.type === 'comment',
+                  'fa-tasks text-blue-600': activity.type === 'assigned'
+                }"></i>
+            </div>
+          </div>
+          <div class="flex-1">
+            <p class="text-gray-700">
+              {{ activity.message }}
+            </p>
+            <p class="text-sm text-gray-500 mt-1">{{ activity.time }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Details Modal -->
+  <div *ngIf="showTaskModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
+      <div class="p-6">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h3 class="text-xl font-bold text-gray-800">{{ selectedTask?.title }}</h3>
+            <p class="text-gray-600 mt-1">{{ selectedTask?.description }}</p>
+          </div>
+          <button (click)="closeTaskDetails()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div>
+            <h4 class="text-md font-semibold text-gray-700 mb-3">Task Details</h4>
+            <div class="space-y-3">
+              <div class="flex items-center">
+                <span class="w-24 text-gray-500 text-sm">Status:</span>
+                <span class="px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full" 
+                      [ngClass]="getStatusClass(selectedTask?.status)">
+                  {{ getStatusText(selectedTask?.status) }}
+                </span>
+              </div>
+              <div class="flex items-center">
+                <span class="w-24 text-gray-500 text-sm">Priority:</span>
+                <span class="px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full" 
+                      [ngClass]="getPriorityClass(selectedTask?.priority || '')">
+                  {{ getPriorityText(selectedTask?.priority || '') }}
+                </span>
+              </div>
+              <div class="flex items-center">
+                <span class="w-24 text-gray-500 text-sm">Due Date:</span>
+                <span [class.text-red-500]="selectedTask && selectedTask.dueDate ? isOverdue(selectedTask.dueDate) : false" class="text-sm">
+                  {{ selectedTask?.dueDate ? formatDate(selectedTask?.dueDate) : 'No due date' }}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <h4 class="text-md font-semibold text-gray-700 mb-3">Additional Info</h4>
+            <div class="space-y-3">
+              <div class="flex items-center">
+                <span class="w-24 text-gray-500 text-sm">Project:</span>
+                <span class="text-sm">{{ selectedTask?.project || 'No project' }}</span>
+              </div>
+              <div class="flex items-start">
+                <span class="w-24 text-gray-500 text-sm">Tags:</span>
+                <div class="flex flex-wrap gap-1">
+                  <span *ngFor="let tag of selectedTask?.tags" class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
+                    {{ tag }}
+                  </span>
+                  <span *ngIf="!selectedTask?.tags?.length" class="text-gray-500 text-sm">No tags</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-6 pt-4 border-t border-gray-200">
+          <div class="flex space-x-3">
+            <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">
+              <i class="fas fa-paperclip mr-1"></i> Add Attachment
+            </button>
+            <button *ngIf="selectedTask?.status !== 'done'" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+              <i class="fas fa-check mr-1"></i> Mark Complete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

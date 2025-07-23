@@ -1,0 +1,180 @@
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+  <h1 class="text-xl font-bold text-gray-800 mb-4">Admin Help Center</h1>
+  
+  <!-- Tab Navigation -->
+  <div class="mb-6 overflow-x-auto">
+      <div class="flex space-x-1 pb-2">
+          <ng-container *ngFor="let section of sections">
+              <button *ngIf="shouldShowTab(section)"
+                      [class.bg-indigo-600]="activeTab === section.id"
+                      [class.text-white]="activeTab === section.id"
+                      [class.text-gray-700]="activeTab !== section.id"
+                      [class.bg-gray-100]="activeTab !== section.id"
+                      class="px-4 py-2 rounded-md text-sm font-medium flex items-center whitespace-nowrap transition-colors duration-200 hover:bg-indigo-100 hover:text-indigo-700"
+                      (click)="setActiveTab(section.id)">
+                  <fa-icon [icon]="section.icon" class="mr-2"></fa-icon>
+                  {{ section.title }}
+              </button>
+          </ng-container>
+      </div>
+  </div>
+
+  <!-- Content Sections -->
+  <div class="tab-content">
+    <!-- Dashboard Section -->
+    <div *ngIf="activeTab === 'dashboard'" class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+        <fa-icon [icon]="faTachometerAlt" class="mr-2 text-indigo-600"></fa-icon>
+        Dashboard
+      </h2>
+      <div class="bg-gray-50 p-4 rounded-lg text-sm">
+        <p class="text-gray-700 mb-2">The dashboard provides an overview of key metrics and activities across your system.</p>
+        <ul class="list-disc pl-5 space-y-1 text-gray-600">
+          <li><strong>Performance Metrics:</strong> View real-time statistics on user activity, project progress, and system health</li>
+          <li><strong>Quick Actions:</strong> Access frequently used functions directly from the dashboard</li>
+          <li><strong>Recent Activity:</strong> Monitor the latest changes made by team members</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- User Management Section -->
+    <div *ngIf="activeTab === 'userManagement'" class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+        <fa-icon [icon]="faUsers" class="mr-2 text-indigo-600"></fa-icon>
+        User Management
+      </h2>
+      <div class="bg-gray-50 p-4 rounded-lg text-sm">
+        <p class="text-gray-700 mb-2">Manage all user accounts and permissions in your system.</p>
+        <ul class="list-disc pl-5 space-y-1 text-gray-600">
+          <li><strong>Create Users:</strong> Add new users with appropriate roles and permissions</li>
+          <li><strong>Edit Profiles:</strong> Update user information, reset passwords, and modify access levels</li>
+          <li><strong>Deactivate Accounts:</strong> Temporarily disable user accounts when needed</li>
+          <li><strong>Role Management:</strong> Assign specific permissions based on organizational roles</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Project Management Section -->
+    <div *ngIf="activeTab === 'projectManagement'" class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+        <fa-icon [icon]="faProjectDiagram" class="mr-2 text-indigo-600"></fa-icon>
+        Project Management
+      </h2>
+      <div class="bg-gray-50 p-4 rounded-lg text-sm">
+        <p class="text-gray-700 mb-2">Organize and track all projects within your organization.</p>
+        <ul class="list-disc pl-5 space-y-1 text-gray-600">
+          <li><strong>Create Projects:</strong> Set up new projects with timelines and assigned teams</li>
+          <li><strong>Track Progress:</strong> Monitor project milestones and completion status</li>
+          <li><strong>Task Management:</strong> Break down projects into manageable tasks and subtasks</li>
+          <li><strong>Resource Allocation:</strong> Assign team members and track their workload</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Content Management Section -->
+    <div *ngIf="activeTab === 'contentManagement'" class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+        <fa-icon [icon]="faFileAlt" class="mr-2 text-indigo-600"></fa-icon>
+        Content Management
+      </h2>
+      <div class="bg-gray-50 p-4 rounded-lg text-sm">
+        <p class="text-gray-700 mb-2">Manage all digital content and assets in one centralized location.</p>
+        <ul class="list-disc pl-5 space-y-1 text-gray-600">
+          <li><strong>Content Creation:</strong> Add and organize various content types</li>
+          <li><strong>Version Control:</strong> Track changes and revert to previous versions</li>
+          <li><strong>Approval Workflows:</strong> Set up review and approval processes</li>
+          <li><strong>Publishing:</strong> Schedule content for publication</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Reports Section -->
+    <div *ngIf="activeTab === 'reports'" class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+        <fa-icon [icon]="faChartBar" class="mr-2 text-indigo-600"></fa-icon>
+        Reports
+      </h2>
+      <div class="bg-gray-50 p-4 rounded-lg text-sm">
+        <p class="text-gray-700 mb-2">Generate detailed reports on system activity and performance.</p>
+        <ul class="list-disc pl-5 space-y-1 text-gray-600">
+          <li><strong>Custom Reports:</strong> Create tailored reports based on your specific needs</li>
+          <li><strong>Scheduled Reports:</strong> Automate report generation and distribution</li>
+          <li><strong>Data Export:</strong> Export report data in multiple formats (CSV, PDF, Excel)</li>
+          <li><strong>Visualizations:</strong> View data through charts and graphs for better insights</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Performance Section -->
+    <div *ngIf="activeTab === 'performance'" class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+        <fa-icon [icon]="faChartLine" class="mr-2 text-indigo-600"></fa-icon>
+        Performance
+      </h2>
+      <div class="bg-gray-50 p-4 rounded-lg text-sm">
+        <p class="text-gray-700 mb-2">Monitor and analyze system and user performance metrics.</p>
+        <ul class="list-disc pl-5 space-y-1 text-gray-600">
+          <li><strong>User Productivity:</strong> Track individual and team performance</li>
+          <li><strong>System Metrics:</strong> Monitor response times and uptime</li>
+          <li><strong>Trend Analysis:</strong> Identify patterns over time</li>
+          <li><strong>Benchmarking:</strong> Compare performance against goals and standards</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Settings Section -->
+    <div *ngIf="activeTab === 'settings'" class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+        <fa-icon [icon]="faCog" class="mr-2 text-indigo-600"></fa-icon>
+        Settings
+      </h2>
+      <div class="bg-gray-50 p-4 rounded-lg text-sm">
+        <p class="text-gray-700 mb-2">Configure system-wide settings and preferences.</p>
+        <ul class="list-disc pl-5 space-y-1 text-gray-600">
+          <li><strong>Account Settings:</strong> Update your profile and preferences</li>
+          <li><strong>Security:</strong> Configure password policies and authentication methods</li>
+          <li><strong>Notifications:</strong> Manage what alerts you receive and how</li>
+          <li><strong>System Configuration:</strong> Adjust global system settings (admin only)</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <div *ngIf="activeTab === 'faq'" class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+        <fa-icon [icon]="faQuestionCircle" class="mr-2 text-indigo-600"></fa-icon>
+        Frequently Asked Questions
+      </h2>
+      <div class="bg-gray-50 p-4 rounded-lg text-sm">
+        <div class="space-y-3">
+          <div>
+            <h3 class="font-medium text-gray-800 text-sm">How do I reset a user's password?</h3>
+            <p class="text-gray-600 mt-1 text-sm">Navigate to User Management, select the user, and click "Reset Password." The user will receive an email with instructions to set a new password.</p>
+          </div>
+          <div>
+            <h3 class="font-medium text-gray-800 text-sm">Can I customize the dashboard?</h3>
+            <p class="text-gray-600 mt-1 text-sm">Yes, click the gear icon in the dashboard header to customize which widgets appear and their layout.</p>
+          </div>
+          <div>
+            <h3 class="font-medium text-gray-800 text-sm">How do I generate a custom report?</h3>
+            <p class="text-gray-600 mt-1 text-sm">Go to Reports, click "New Report," select your data parameters, and choose your preferred visualization type.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Support Contact -->
+  <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mt-6">
+    <h2 class="text-md font-semibold text-indigo-800 mb-2">Need Further Assistance?</h2>
+    <p class="text-gray-700 mb-2 text-sm">Our support team is available to help you with any questions or issues.</p>
+    <div class="flex flex-col sm:flex-row gap-3 text-sm">
+      <a href="mailto:support@genworx.ai" class="flex items-center text-indigo-600 hover:text-indigo-800">
+        <fa-icon [icon]="faEnvelope" class="mr-2"></fa-icon> Email Support
+      </a>
+      <a href="tel:+1234567890" class="flex items-center text-indigo-600 hover:text-indigo-800">
+        <fa-icon [icon]="faPhone" class="mr-2"></fa-icon> Call Support
+      </a>
+    </div>
+  </div>
+</div>

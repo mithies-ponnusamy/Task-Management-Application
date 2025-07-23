@@ -1,0 +1,87 @@
+<div class="max-w-7xl mx-auto py-6">
+  <div class="mb-6 flex justify-between items-center">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">Backlogs</h1>
+        <p class="mt-1 text-sm text-gray-500">View, filter, and manage all tasks assigned to your team.</p>
+    </div>
+    <button (click)="openCreateTaskModal()" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
+        <i class="fas fa-plus"></i> Create Task
+    </button>
+  </div>
+
+  <div class="bg-white shadow rounded-lg mb-6 p-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+      <div class="lg:col-span-2"><label class="block text-sm font-medium text-gray-700">Search</label><input type="text" [(ngModel)]="filters.query" (input)="applyFilters()" placeholder="Search task titles..." class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"></div>
+      <div><label class="block text-sm font-medium text-gray-700">Project</label><select [(ngModel)]="filters.projectId" (change)="onProjectFilterChange()" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option value="all">All Projects</option><option *ngFor="let p of projects" [value]="p.id">{{p.name}}</option></select></div>
+      <div><label class="block text-sm font-medium text-gray-700">Sprint / Backlog</label><select [(ngModel)]="filters.sprintId" (change)="applyFilters()" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option value="all">All Sprints</option><option value="none">Product Backlog</option><option *ngFor="let s of filteredSprints" [value]="s.id">{{s.name}}</option></select></div>
+      <div><label class="block text-sm font-medium text-gray-700">Status</label><select [(ngModel)]="filters.status" (change)="applyFilters()" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option value="all">All Statuses</option><option value="todo">To Do</option><option value="in-progress">In Progress</option><option value="review">Review</option><option value="done">Done</option></select></div>
+    </div>
+  </div>
+
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="table-header">Task</th><th class="table-header">Assignee</th><th class="table-header">Sprint</th><th class="table-header">Due Date</th><th class="table-header">Status & Priority</th><th class="table-header text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr *ngFor="let task of filteredTasks" class="hover:bg-gray-50">
+            <td class="px-6 py-4"><p class="text-sm font-medium text-gray-900">{{task.title}}</p><p class="text-xs text-gray-500">{{getProjectName(task.projectId)}}</p></td>
+            <td class="px-6 py-4 text-sm">{{getAssigneeName(task.assigneeId)}}</td>
+            <td class="px-6 py-4 text-sm">{{getSprintName(task.sprintId)}}</td>
+            <td class="px-6 py-4 text-sm">{{task.dueDate | date:'MMM d, y'}}</td>
+            <td class="px-6 py-4"><div class="flex items-center gap-2"><span class="px-2 py-1 text-xs font-semibold rounded-full" [ngClass]="getStatusClass(task.status)">{{task.status | titlecase}}</span><i class="fas fa-circle text-xs" [ngClass]="getPriorityClass(task.priority)" [title]="task.priority | titlecase"></i></div></td>
+            <td class="px-6 py-4 text-right">
+                <div class="flex items-center justify-end space-x-3 text-gray-500">
+                    <button (click)="viewTask(task)" title="View Details" class="hover:text-blue-600"><i class="fas fa-eye"></i></button>
+                    <button (click)="editTask(task)" title="Edit Task" class="hover:text-green-600"><i class="fas fa-pencil-alt"></i></button>
+                    <button (click)="confirmDelete(task.id)" title="Delete Task" class="hover:text-red-600"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            </td>
+          </tr>
+          <tr *ngIf="filteredTasks.length === 0"><td colspan="6" class="text-center py-10 text-gray-500">No tasks match your filters.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="isViewModalOpen && currentTask" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-40 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-xl p-6">
+        <h3 class="text-xl font-bold text-gray-900">{{ currentTask.title }}</h3>
+        <p class="text-sm text-gray-500 mt-1">In Project: {{ getProjectName(currentTask.projectId) }}</p>
+        <div class="mt-4 pt-4 border-t text-sm space-y-3">
+            <p><strong class="font-medium text-gray-600 w-24 inline-block">Description:</strong> {{ currentTask.description || 'No description provided.' }}</p>
+            <p><strong class="font-medium text-gray-600 w-24 inline-block">Assignee:</strong> {{ getAssigneeName(currentTask.assigneeId) }}</p>
+            <p><strong class="font-medium text-gray-600 w-24 inline-block">Due Date:</strong> {{ currentTask.dueDate | date:'fullDate' }}</p>
+            <p><strong class="font-medium text-gray-600 w-24 inline-block">Status:</strong> <span class="font-semibold" [ngClass]="getStatusClass(currentTask.status)">{{ currentTask.status | titlecase }}</span></p>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+            <button (click)="closeModals()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md">Close</button>
+            <button (click)="confirmDelete(currentTask.id)" class="px-4 py-2 bg-red-600 text-white rounded-md">Delete</button>
+            <button (click)="editTask(currentTask)" class="px-4 py-2 bg-blue-600 text-white rounded-md">Edit</button>
+        </div>
+    </div>
+</div>
+
+<div *ngIf="isEditModalOpen && currentTask" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-40 flex items-center justify-center">
+    <form #editTaskForm="ngForm" (ngSubmit)="confirmSaveChanges(editTaskForm)" class="bg-white rounded-lg shadow-xl w-full max-w-xl">
+        <div class="p-6 border-b">
+            <h3 class="text-lg font-medium">Edit Task</h3>
+        </div>
+        <div class="p-6 grid grid-cols-2 gap-4">
+            <div class="col-span-2"><label class="text-sm">Title *</label><input type="text" name="title" [(ngModel)]="currentTask.title" required class="mt-1 w-full border border-gray-300 rounded-md p-2"></div>
+            <div class="col-span-2"><label class="text-sm">Description</label><textarea name="description" [(ngModel)]="currentTask.description" rows="3" class="mt-1 w-full border border-gray-300 rounded-md p-2"></textarea></div>
+            <div><label class="text-sm">Assignee</label><select name="assigneeId" [(ngModel)]="currentTask.assigneeId" class="mt-1 w-full border border-gray-300 rounded-md p-2"><option value="">Unassigned</option><option *ngFor="let member of teamMembers" [value]="member.id">{{member.name}}</option></select></div>
+            <div><label class="text-sm">Due Date *</label><input type="date" name="dueDate" [ngModel]="currentTask.dueDate | date:'yyyy-MM-dd'" (ngModelChange)="currentTask.dueDate = $event" required class="mt-1 w-full border border-gray-300 rounded-md p-2"></div>
+            <div><label class="text-sm">Status *</label><select name="status" [(ngModel)]="currentTask.status" required class="mt-1 w-full border border-gray-300 rounded-md p-2"><option value="todo">To Do</option><option value="in-progress">In Progress</option><option value="review">Review</option><option value="done">Done</option></select></div>
+            <div><label class="text-sm">Priority</label><select name="priority" [(ngModel)]="currentTask.priority" class="mt-1 w-full border border-gray-300 rounded-md p-2"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
+            <button type="button" (click)="closeModals()" class="px-4 py-2 bg-white border border-gray-300 rounded-md">Cancel</button>
+            <button type="submit" [disabled]="!editTaskForm.valid" class="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400">Save Changes</button>
+        </div>
+    </form>
+</div>

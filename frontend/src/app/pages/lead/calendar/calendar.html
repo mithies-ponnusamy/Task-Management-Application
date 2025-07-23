@@ -1,0 +1,78 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Project Calendar</h1>
+    <p class="mt-1 text-sm text-gray-500">View your team's project deadlines and milestones.</p>
+  </div>
+
+  <div class="bg-white shadow rounded-lg mb-6 p-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <button (click)="previousMonth()" class="p-2 rounded-full hover:bg-gray-100"><i class="fas fa-chevron-left"></i></button>
+        <h2 class="text-lg font-semibold text-gray-900 w-32 text-center">{{ currentMonth | date:'MMMM yyyy' }}</h2>
+        <button (click)="nextMonth()" class="p-2 rounded-full hover:bg-gray-100"><i class="fas fa-chevron-right"></i></button>
+        <button (click)="goToToday()" class="ml-4 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">Today</button>
+      </div>
+      </div>
+  </div>
+
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="grid grid-cols-7 border-b border-gray-200">
+      <div *ngFor="let day of weekdays" class="py-2 text-center text-sm font-medium text-gray-600">{{ day }}</div>
+    </div>
+
+    <div class="grid grid-cols-7 grid-rows-5 gap-px bg-gray-200">
+      <div *ngFor="let day of calendarDays" 
+           class="min-h-32 p-2 relative flex flex-col"
+           [ngClass]="{'bg-gray-50': !day.isCurrentMonth, 'bg-white': day.isCurrentMonth}">
+        <span class="text-sm"
+              [ngClass]="{'text-gray-400': !day.isCurrentMonth, 'font-bold text-blue-600': day.isToday}">
+            {{ day.date | date:'d' }}
+        </span>
+        
+        <div class="mt-1 space-y-1 overflow-y-auto flex-1">
+          <div *ngFor="let event of getEventsForDay(day.date)"
+               (click)="viewEvent(event)"
+               class="text-xs p-1 rounded truncate cursor-pointer border"
+               [ngClass]="event.color">
+            {{ event.title }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="eventModalOpen" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+        <div *ngIf="selectedEvent">
+            <span class="px-2 py-1 text-xs font-semibold rounded-full" [ngClass]="selectedEvent.color">{{selectedEvent.type | titlecase}}</span>
+            <h3 class="text-lg font-medium text-gray-900 mt-2">{{selectedEvent.title}}</h3>
+            
+            <div *ngIf="selectedEvent.type === 'task'" class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <p class="font-medium text-gray-500">Due Date</p>
+                    <p>{{selectedEvent.start | date:'fullDate'}}</p>
+                </div>
+                <div>
+                    <p class="font-medium text-gray-500">Project</p>
+                    <p>{{getProjectName(selectedEvent.data.projectId)}}</p>
+                </div>
+                 <div>
+                    <p class="font-medium text-gray-500">Assignee</p>
+                    <p>{{selectedEvent.data.assignee || 'Unassigned'}}</p>
+                </div>
+                 <div>
+                    <p class="font-medium text-gray-500">Status</p>
+                    <p>{{selectedEvent.data.status | titlecase}}</p>
+                </div>
+            </div>
+
+            <div *ngIf="selectedEvent.type === 'deadline'" class="mt-4 text-sm">
+                <p><span class="font-medium text-gray-500">Deadline Date:</span> {{selectedEvent.start | date:'fullDate'}}</p>
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end">
+            <button (click)="eventModalOpen = false" class="px-4 py-2 bg-blue-600 text-white rounded-md">Close</button>
+        </div>
+    </div>
+  </div>
+</div>

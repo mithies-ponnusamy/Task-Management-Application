@@ -1,0 +1,29 @@
+:host {
+  display: block;
+  flex-direction: column;
+  height: 100%;
+}
+
+.sidebar {
+  width: 420px;
+  background: linear-gradient(180deg, #4f46e5 0%, #3730a3 100%);
+}
+
+.nav-link {
+  font-size: 1.15rem;
+  padding: 1rem 1.75rem;
+  transition: all 0.2s ease;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    transform: translateX(-100%);
+    z-index: 40;
+    transition: transform 0.3s ease;
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}

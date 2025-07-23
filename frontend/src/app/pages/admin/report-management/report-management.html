@@ -1,0 +1,674 @@
+<div class="flex-1 flex flex-col overflow-hidden">
+  <!-- Main Content Area -->
+  <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
+    <!-- Page Header -->
+    <div class="flex flex-col mb-8">
+      <div class="flex justify-between items-start md:items-center mb-6">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">Report Management</h1>
+          <p class="text-gray-600">Generate, view, and export detailed reports on tasks, projects, and team performance</p>
+        </div>
+        <button 
+          (click)="toggleReportGenerator()"
+          class="flex items-center space-x-2 bg-indigo-600 text-white rounded-lg px-4 py-2 hover:bg-indigo-700 transition-colors">
+          <i class="fas fa-plus"></i>
+          <span>New Report</span>
+        </button>
+      </div>
+      
+      <!-- Report Tabs -->
+      <div class="border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8">
+          <button 
+            *ngFor="let tab of tabs"
+            (click)="setActiveTab(tab.id)"
+            class="py-4 px-1 text-sm font-medium whitespace-nowrap transition-colors duration-200"
+            [ngClass]="{
+              'border-b-2 border-indigo-500 text-indigo-600': activeTab === tab.id,
+              'text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== tab.id
+            }">
+            <i [class]="'fas ' + tab.icon + ' mr-2'"></i>{{ tab.label }}
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Report Generation Section -->
+    <div 
+      *ngIf="showReportGenerator"
+      class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-8">
+      <h3 class="text-xl font-semibold text-gray-800 mb-4">Create New Report</h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Report Type -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Report Type</label>
+          <select 
+            [(ngModel)]="reportForm.reportType"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="task_status">Task Status Report</option>
+            <option value="team_performance">Team Performance Report</option>
+            <option value="project_summary">Project Summary Report</option>
+            <option value="time_tracking">Time Tracking Report</option>
+          </select>
+        </div>
+        
+        <!-- Date Range -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+          <select 
+            [(ngModel)]="reportForm.dateRange"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="7">Last 7 Days</option>
+            <option value="30" selected>Last 30 Days</option>
+            <option value="90">Last Quarter</option>
+            <option value="365">Last Year</option>
+            <option value="custom">Custom Range</option>
+          </select>
+        </div>
+        
+        <!-- Projects Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Projects</label>
+          <div class="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-200 rounded-md">
+            <div *ngFor="let project of allProjects" class="flex items-center">
+              <input 
+                type="checkbox" 
+                [id]="'project-' + project"
+                [value]="project"
+                [(ngModel)]="reportForm.projects"
+                class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+              <label [for]="'project-' + project" class="ml-2 text-sm text-gray-700">{{ project }}</label>
+            </div>
+            <div class="flex items-center">
+              <input 
+                type="checkbox" 
+                id="project-all"
+                [checked]="reportForm.projects.length === allProjects.length"
+                (change)="toggleAllProjects($event)"
+                class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+              <label for="project-all" class="ml-2 text-sm text-gray-700 font-medium">Select All</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Teams Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Teams</label>
+          <div class="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-200 rounded-md">
+            <div *ngFor="let team of allTeams" class="flex items-center">
+              <input 
+                type="checkbox" 
+                [id]="'team-' + team"
+                [value]="team"
+                [(ngModel)]="reportForm.teams"
+                class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+              <label [for]="'team-' + team" class="ml-2 text-sm text-gray-700">{{ team }}</label>
+            </div>
+            <div class="flex items-center">
+              <input 
+                type="checkbox" 
+                id="team-all"
+                [checked]="reportForm.teams.length === allTeams.length"
+                (change)="toggleAllTeams($event)"
+                class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+              <label for="team-all" class="ml-2 text-sm text-gray-700 font-medium">Select All</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Advanced Options -->
+      <div class="mb-6">
+        <button 
+          (click)="toggleAdvancedOptions()"
+          class="text-sm text-indigo-600 hover:text-indigo-800 flex items-center">
+          <i class="fas fa-cog mr-2"></i> Advanced Options
+          <i [class]="'fas ml-2 text-xs ' + (showAdvancedOptions ? 'fa-chevron-up' : 'fa-chevron-down')"></i>
+        </button>
+        
+        <div 
+          *ngIf="showAdvancedOptions"
+          class="mt-4 p-4 bg-gray-50 rounded-lg">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Status Filter -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Task Status</label>
+              <div class="space-y-2">
+                <div *ngFor="let status of allStatuses" class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    [id]="'status-' + status"
+                    [value]="status"
+                    [(ngModel)]="reportForm.statuses"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <label [for]="'status-' + status" class="ml-2 text-sm text-gray-700">{{ status }}</label>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Priority Filter -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+              <div class="space-y-2">
+                <div *ngFor="let priority of allPriorities" class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    [id]="'priority-' + priority"
+                    [value]="priority"
+                    [(ngModel)]="reportForm.priority"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <label [for]="'priority-' + priority" class="ml-2 text-sm text-gray-700">{{ priority }}</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <!-- Columns to Include -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Columns to Include</label>
+              <div class="space-y-2">
+                <div class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id="col-task" 
+                    [(ngModel)]="reportForm.columns.task"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <label for="col-task" class="ml-2 text-sm text-gray-700">Task Name</label>
+                </div>
+                <div class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id="col-project" 
+                    [(ngModel)]="reportForm.columns.project"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <label for="col-project" class="ml-2 text-sm text-gray-700">Project</label>
+                </div>
+                <div class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id="col-assignee" 
+                    [(ngModel)]="reportForm.columns.assignee"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <label for="col-assignee" class="ml-2 text-sm text-gray-700">Assignee</label>
+                </div>
+                <div class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id="col-status" 
+                    [(ngModel)]="reportForm.columns.status"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <label for="col-status" class="ml-2 text-sm text-gray-700">Status</label>
+                </div>
+                <div class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id="col-priority" 
+                    [(ngModel)]="reportForm.columns.priority"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <label for="col-priority" class="ml-2 text-sm text-gray-700">Priority</label>
+                </div>
+                <div class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id="col-dueDate" 
+                    [(ngModel)]="reportForm.columns.dueDate"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <label for="col-dueDate" class="ml-2 text-sm text-gray-700">Due Date</label>
+                </div>
+                <div class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id="col-timeSpent" 
+                    [(ngModel)]="reportForm.columns.timeSpent"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <label for="col-timeSpent" class="ml-2 text-sm text-gray-700">Time Spent</label>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Report Options -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Report Options</label>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Report Format</label>
+                  <div class="space-y-2">
+                    <div class="flex items-center">
+                      <input 
+                        type="radio" 
+                        id="format-table" 
+                        name="format" 
+                        value="table"
+                        [(ngModel)]="reportForm.format"
+                        class="h-4 w-4 text-indigo-600 border-gray-300">
+                      <label for="format-table" class="ml-2 text-sm text-gray-700">Data Table</label>
+                    </div>
+                    <div class="flex items-center">
+                      <input 
+                        type="radio" 
+                        id="format-chart" 
+                        name="format" 
+                        value="chart"
+                        [(ngModel)]="reportForm.format"
+                        class="h-4 w-4 text-indigo-600 border-gray-300">
+                      <label for="format-chart" class="ml-2 text-sm text-gray-700">Visual Charts</label>
+                    </div>
+                    <div class="flex items-center">
+                      <input 
+                        type="radio" 
+                        id="format-both" 
+                        name="format" 
+                        value="both"
+                        [(ngModel)]="reportForm.format"
+                        class="h-4 w-4 text-indigo-600 border-gray-300">
+                      <label for="format-both" class="ml-2 text-sm text-gray-700">Both</label>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id="include-insights" 
+                    [(ngModel)]="reportForm.includeInsights"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <label for="include-insights" class="ml-2 text-sm text-gray-700">Include Key Insights</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex justify-end space-x-3">
+        <button 
+          (click)="cancelReportGeneration()"
+          class="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-50 transition-colors">
+          Cancel
+        </button>
+        <button 
+          (click)="generateReport()"
+          class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors">
+          Generate Report
+        </button>
+      </div>
+    </div>
+
+    <!-- Saved Reports Section -->
+    <div *ngIf="activeTab === 'saved'">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-semibold text-gray-800">Saved Reports</h3>
+        <div class="relative">
+          <input 
+            type="text" 
+            [(ngModel)]="searchTerm"
+            (input)="filterReports()"
+            placeholder="Search reports..." 
+            class="border border-gray-300 rounded-md px-4 py-2 pl-10 w-64 focus:ring-indigo-500 focus:border-indigo-500">
+          <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+        </div>
+      </div>
+      
+      <!-- Report Cards Grid -->
+      <div *ngIf="filteredReports.length > 0; else noReports" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div 
+          *ngFor="let report of filteredReports | slice: (currentPage-1)*itemsPerPage : currentPage*itemsPerPage"
+          class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-md">
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <h4 class="font-semibold text-lg text-gray-800">{{ report.title }}</h4>
+              <p class="text-sm text-gray-500">Generated: {{ report.date }}</p>
+            </div>
+            <div class="flex space-x-2">
+              <div class="relative">
+                <button 
+                  (click)="toggleReportMenu(report.id)"
+                  class="text-gray-400 hover:text-indigo-600">
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div 
+                  *ngIf="showReportMenu === report.id"
+                  class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5">
+                  <div class="py-1">
+                    <button 
+                      (click)="viewReport(report.id)"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
+                      <i class="fas fa-eye mr-2"></i> View
+                    </button>
+                    <button 
+                      (click)="showExportConfirmation(report.id)"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
+                      <i class="fas fa-download mr-2"></i> Export
+                    </button>
+                    <button 
+                      (click)="showDuplicateConfirmation(report.id)"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
+                      <i class="fas fa-copy mr-2"></i> Duplicate
+                    </button>
+                    <button 
+                      (click)="deleteReport(report.id)"
+                      class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left">
+                      <i class="fas fa-trash mr-2"></i> Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="text-gray-600 mb-4 text-sm">{{ report.description }}</p>
+          <div class="flex flex-wrap gap-2 mb-4">
+            <span 
+              *ngFor="let tag of getFilterTags(report).slice(0, 2)"
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              {{ tag.length > 20 ? tag.substring(0, 20) + '...' : tag }}
+            </span>
+            <span 
+              *ngIf="getFilterTags(report).length > 2"
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              +{{ getFilterTags(report).length - 2 }} more
+            </span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span 
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+              [ngClass]="getStatusClass(report.status)">
+              <i [class]="'fas mr-1 ' + getStatusIcon(report.status)"></i>
+              {{ getStatusText(report.status) }}
+            </span>
+            <div class="flex space-x-2">
+              <button 
+                (click)="viewReport(report.id)"
+                class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                <i class="fas fa-eye mr-1"></i> View
+              </button>
+              <button 
+                (click)="showExportConfirmation(report.id)"
+                class="text-gray-600 hover:text-gray-800 text-sm font-medium">
+                <i class="fas fa-download mr-1"></i> Export
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <ng-template #noReports>
+        <div class="bg-white p-8 rounded-lg shadow-sm border border-gray-100 text-center">
+          <i class="fas fa-file-alt text-4xl text-gray-300 mb-4"></i>
+          <h4 class="text-lg font-medium text-gray-700 mb-2">No Reports Found</h4>
+          <p class="text-gray-500 mb-4">You don't have any saved reports yet. Generate a new report to get started.</p>
+          <button 
+            (click)="toggleReportGenerator()"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
+            <i class="fas fa-plus mr-2"></i> New Report
+          </button>
+        </div>
+      </ng-template>
+      
+      <!-- Detailed Report View -->
+      <div 
+        *ngIf="selectedReport"
+        class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-8 print-section">
+        <!-- Print Header -->
+        <div class="print-header hidden no-print">
+          <div>
+            <h1 class="text-xl font-bold text-gray-900">{{ selectedReport.title }}</h1>
+            <p class="text-sm text-gray-500">Generated on {{ selectedReport.date }}</p>
+          </div>
+          <div class="text-sm text-gray-500">
+            <p>Task Management System</p>
+            <p>Printed on {{ currentDate | date:'mediumDate' }}</p>
+          </div>
+        </div>
+        
+        <div class="flex justify-between items-center mb-6 no-print">
+          <div>
+            <h3 class="text-xl font-semibold text-gray-800">{{ selectedReport.title }}</h3>
+            <p class="text-sm text-gray-500">Generated on {{ selectedReport.date }} | {{ selectedReport.type }}</p>
+          </div>
+          <div class="flex space-x-3">
+            <button 
+              (click)="printReport()"
+              class="flex items-center space-x-1 bg-white border border-gray-300 rounded-md px-3 py-1 text-sm text-gray-700 hover:bg-gray-50">
+              <i class="fas fa-print"></i>
+              <span>Print</span>
+            </button>
+            <div class="relative">
+              <button 
+                (click)="toggleExportDropdown()"
+                class="flex items-center space-x-1 bg-indigo-600 text-white rounded-md px-3 py-1 text-sm hover:bg-indigo-700">
+                <i class="fas fa-download"></i>
+                <span>Export</span>
+              </button>
+              <div 
+                *ngIf="showExportDropdown"
+                class="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-10">
+                <div class="py-1">
+                  <button 
+                    (click)="exportAs('pdf')"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
+                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> PDF
+                  </button>
+                  <button 
+                    (click)="exportAs('excel')"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
+                    <i class="fas fa-file-excel mr-2 text-green-500"></i> Excel
+                  </button>
+                  <button 
+                    (click)="exportAs('csv')"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
+                    <i class="fas fa-file-csv mr-2 text-blue-500"></i> CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button 
+              (click)="closeReportView()"
+              class="flex items-center space-x-1 bg-white border border-gray-300 rounded-md px-3 py-1 text-sm text-gray-700 hover:bg-gray-50">
+              <i class="fas fa-times"></i>
+              <span>Close</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Report Filters Applied -->
+        <div class="bg-gray-50 p-4 rounded-lg mb-6 print:border print:border-gray-200">
+          <h4 class="text-sm font-medium text-gray-700 mb-2">Filters Applied</h4>
+          <div class="flex flex-wrap gap-2">
+            <span 
+              *ngFor="let filter of getFilterTags(selectedReport)"
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              {{ filter }}
+            </span>
+          </div>
+        </div>
+        
+        <!-- Report Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div 
+            *ngFor="let metric of getMetricCards(selectedReport)"
+            class="p-4 rounded-lg border border-gray-200"
+            [ngClass]="metric.bgColor">
+            <div class="flex items-center">
+              <div class="p-2 rounded-full bg-white mr-3">
+                <i [class]="'fas ' + metric.icon + ' ' + metric.textColor"></i>
+              </div>
+              <div>
+                <p class="text-sm font-medium mb-1" [ngClass]="metric.textColor">{{ metric.label }}</p>
+                <p class="text-xl font-bold" [ngClass]="metric.valueColor">{{ metric.value }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Report Data Table -->
+        <div class="mb-8" *ngIf="selectedReport.format === 'table' || selectedReport.format === 'both'">
+          <h4 class="text-lg font-medium text-gray-800 mb-4">Detailed Data</h4>
+          <div class="overflow-x-auto">
+            <table class="w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th 
+                    *ngFor="let header of getTableHeaders(selectedReport)"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {{ header }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr 
+                  *ngFor="let row of selectedReport.data | slice: (tableCurrentPage-1)*tableItemsPerPage : tableCurrentPage*tableItemsPerPage"
+                  class="hover:bg-gray-50">
+                  <td 
+                    *ngFor="let cell of getTableRow(row); let i = index"
+                    class="px-6 py-4 whitespace-nowrap text-sm"
+                    [innerHTML]="cell">
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Table Pagination -->
+          <div *ngIf="selectedReport.data.length > tableItemsPerPage" class="table-pagination">
+            <div class="text-sm text-gray-700">
+              Showing <span class="font-medium">{{ (tableCurrentPage-1)*tableItemsPerPage + 1 }}</span> to 
+              <span class="font-medium">{{ min(tableCurrentPage*tableItemsPerPage, selectedReport.data.length) }}</span> of 
+              <span class="font-medium">{{ selectedReport.data.length }}</span> entries
+            </div>
+            <div class="flex space-x-2">
+              <button 
+                (click)="previousTablePage()"
+                [disabled]="tableCurrentPage === 1"
+                class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">
+                Previous
+              </button>
+              <button 
+                (click)="nextTablePage()"
+                [disabled]="tableCurrentPage === tableTotalPages"
+                class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Report Visualizations -->
+        <div class="mb-8" *ngIf="selectedReport.format === 'chart' || selectedReport.format === 'both'">
+          <h4 class="text-lg font-medium text-gray-800 mb-4">Visualizations</h4>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="bg-white p-4 rounded-lg border border-gray-200 print:border-0 print:shadow-none">
+              <div class="h-64">
+                <canvas #taskStatusChart></canvas>
+              </div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-gray-200 print:border-0 print:shadow-none">
+              <div class="h-64">
+                <canvas #teamPerformanceChart></canvas>
+              </div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-gray-200 print:border-0 print:shadow-none lg:col-span-2">
+              <div class="h-64">
+                <canvas #priorityDistributionChart></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Report Insights -->
+        <div *ngIf="selectedReport.insights && selectedReport.insights.length > 0" class="bg-blue-50 p-4 rounded-lg border border-blue-200 print:border print:border-blue-200">
+          <h4 class="text-lg font-medium text-blue-800 mb-2">Key Insights</h4>
+          <ul class="list-disc pl-5 text-sm text-blue-800 space-y-1">
+            <li *ngFor="let insight of selectedReport.insights">{{ insight }}</li>
+          </ul>
+        </div>
+        
+        <!-- Print Footer -->
+        <div class="print-footer hidden no-print">
+          <p class="text-xs text-gray-500">
+            Confidential - Task Management System Report | Printed on {{ currentDate | date:'mediumDate' }} | Page 1 of 1
+          </p>
+        </div>
+      </div>
+      
+      <!-- Pagination -->
+      <div *ngIf="filteredReports.length > 0" class="flex items-center justify-between border-t border-gray-200 pt-4">
+        <div class="text-sm text-gray-700">
+          Showing <span class="font-medium">{{ paginationInfo.start }}</span> to 
+          <span class="font-medium">{{ paginationInfo.end }}</span> of 
+          <span class="font-medium">{{ paginationInfo.total }}</span> reports
+        </div>
+        <div class="flex space-x-2">
+          <button 
+            (click)="previousPage()"
+            [disabled]="currentPage === 1"
+            class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">
+            Previous
+          </button>
+          <button 
+            *ngFor="let page of getPageNumbers()"
+            (click)="goToPage(page)"
+            class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium"
+            [ngClass]="{
+              'bg-indigo-600 text-white': page === currentPage,
+              'text-gray-700 bg-white hover:bg-gray-50': page !== currentPage
+            }">
+            {{ page }}
+          </button>
+          <button 
+            (click)="nextPage()"
+            [disabled]="currentPage === totalPages"
+            class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Report History Section -->
+    <div *ngIf="activeTab === 'history'">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-semibold text-gray-800">Report History</h3>
+        <div class="relative">
+          <input 
+            type="text" 
+            [(ngModel)]="historySearchTerm"
+            (input)="filterHistory()"
+            placeholder="Search history..." 
+            class="border border-gray-300 rounded-md px-4 py-2 pl-10 w-64 focus:ring-indigo-500 focus:border-indigo-500">
+          <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+        </div>
+      </div>
+      
+      <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <table class="w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Report Name</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Generated By</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Generated</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exported As</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr 
+              *ngFor="let historyItem of filteredHistory"
+              class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ historyItem.name }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ historyItem.type }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ historyItem.generatedBy }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ historyItem.date }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  {{ historyItem.exportedAs }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>

@@ -1,0 +1,55 @@
+<!-- profile.component.html -->
+<div class="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-md">
+  <h1 class="text-3xl font-bold text-indigo-800 mb-6">Your Profile</h1>
+  
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <!-- Profile Picture -->
+    <div class="flex flex-col items-center">
+      <div class="h-40 w-40 rounded-full bg-indigo-100 flex items-center justify-center shadow-lg mb-4">
+        <i class="fas fa-user text-indigo-600 text-6xl"></i>
+      </div>
+      <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+        Change Photo
+      </button>
+    </div>
+
+    <!-- User Details -->
+    <div class="md:col-span-2">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-gray-600 mb-1">Name</label>
+          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+            {{ currentUser?.name || 'Not available' }}
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-gray-600 mb-1">Email</label>
+          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+            {{ currentUser?.email || 'Not available' }}
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-gray-600 mb-1">Role</label>
+          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+            {{ currentUser?.role || 'Not available' }}
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-gray-600 mb-1">Join Date</label>
+          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+            {{ currentUser?.joinDate || 'Not available' }}
+          </div>
+        </div>
+      </div>
+      
+      <div class="mt-6">
+        <button class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+          Edit Profile
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

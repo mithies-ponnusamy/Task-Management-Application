@@ -1,0 +1,337 @@
+.sidebar {
+  transition: all 0.3s ease;
+  width: 305px;
+}
+
+.active-nav {
+  background-color: #e0e7ff;
+  color: #4f46e5;
+  border-left: 4px solid #4f46e5;
+}
+
+.modal {
+  transition: all 0.3s ease;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.modal.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.progress-bar {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.table-row:hover {
+  background-color: #f8fafc;
+}
+
+.locked-field {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.required-field::after {
+  content: " *";
+  color: red;
+}
+
+.tab-content {
+  display: block;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.tab-button {
+  transition: all 0.2s ease;
+}
+
+.tab-button.active {
+  border-bottom: 2px solid #4f46e5;
+  color: #4f46e5;
+}
+
+.filter-dropdown {
+  display: block;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+  background-color: white;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  padding: 0.75rem;
+}
+
+.pagination-btn {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #d1d5db;
+  background-color: white;
+  color: #4b5563;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn.active {
+  background-color: #4f46e5;
+  color: white;
+  border-color: #4f46e5;
+}
+
+.pagination-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.priority-high {
+  border-left: 4px solid #ef4444;
+}
+
+.priority-medium {
+  border-left: 4px solid #f59e0b;
+}
+
+.priority-low {
+  border-left: 4px solid #10b981;
+}
+
+.status-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-planning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-in-progress {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.status-completed {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.status-on-hold {
+  background-color: #e5e7eb;
+  color: #4b5563;
+}
+
+.task-status-todo {
+  background-color: #e5e7eb;
+  color: #4b5563;
+}
+
+.task-status-in-progress {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.task-status-review {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.task-status-done {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.team-lead-busy {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.team-lead-available {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.project-card {
+  transition: all 0.2s ease;
+  border-left-width: 4px;
+}
+
+.project-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.task-item {
+  transition: all 0.2s ease;
+}
+
+.task-item:hover {
+  background-color: #f8fafc;
+}
+
+.sprint-item {
+  border-left-width: 4px;
+}
+
+.sprint-active {
+  border-left-color: #4f46e5;
+}
+
+.sprint-completed {
+  border-left-color: #10b981;
+}
+
+.sprint-upcoming {
+  border-left-color: #f59e0b;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+.action-btn {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  opacity: 0.8;
+}
+
+.action-btn.view-btn {
+  color: #4f46e5;
+  background-color: #e0e7ff;
+}
+
+.action-btn.edit-btn {
+  color: #f59e0b;
+  background-color: #fef3c7;
+}
+
+.action-btn.delete-btn {
+  color: #ef4444;
+  background-color: #fee2e2;
+}
+
+.tab-button, .action-btn, .pagination-btn {
+  position: relative;
+  z-index: 1;
+}
+
+.modal {
+  z-index: 50;
+}
+
+.modal .modal-content {
+  transition: transform 0.3s ease;
+  transform: translateY(-20px);
+}
+
+.modal.open .modal-content {
+  transform: translateY(0);
+}
+
+.filter-dropdown {
+  z-index: 100;
+}
+
+/* Scrollable modal content */
+.modal > div {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Sticky header in modals */
+.sticky {
+  position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 10;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+/* Form validation styles */
+.border-red-300 {
+  border-color: #fca5a5;
+}
+
+.text-red-500 {
+  color: #ef4444;
+}
+
+/* Disabled button styles */
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Enhanced quick assign section */
+.quick-assign-section {
+  background-color: #f8fafc;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.quick-assign-section h4 {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.team-lead-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.team-lead-info .initials {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background-color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.5rem;
+  font-size: 0.75rem;
+  color: #4a5568;
+}
+
+.team-lead-info .details {
+  flex: 1;
+}
+
+.team-lead-info .name {
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.team-lead-info .team {
+  font-size: 0.75rem;
+  color: #718096;
+}
+
+.team-lead-status {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .filter-dropdown {
+    right: auto;
+    left: 0;
+  }
+  
+  .modal > div {
+    width: 95%;
+  }
+}

@@ -1,0 +1,175 @@
+<div class="min-h-full">
+  <!-- Header Section -->
+  <div class="mb-8 flex justify-between items-center">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-800">Create Report</h1>
+      <p class="text-lg text-gray-600 mt-2">Generate reports for your projects</p>
+    </div>
+  </div>
+
+  <!-- Report Form -->
+  <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+    <form (ngSubmit)="generateReport()">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div>
+          <label class="block text-gray-700 mb-2">Project</label>
+          <select [(ngModel)]="reportData.projectId" name="project" 
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option *ngFor="let project of assignedProjects" [value]="project.id">
+              {{ project.name }}
+            </option>
+          </select>
+        </div>
+        
+        <div>
+          <label class="block text-gray-700 mb-2">Report Type</label>
+          <select [(ngModel)]="reportData.type" name="type" 
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="progress">Progress Report</option>
+            <option value="tasks">Task Completion</option>
+            <option value="time">Time Spent</option>
+          </select>
+        </div>
+        
+        <div>
+          <label class="block text-gray-700 mb-2">Start Date</label>
+          <input type="date" [(ngModel)]="reportData.startDate" name="startDate"
+                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        
+        <div>
+          <label class="block text-gray-700 mb-2">End Date</label>
+          <input type="date" [(ngModel)]="reportData.endDate" name="endDate"
+                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+      </div>
+      
+      <div class="mb-6">
+        <label class="block text-gray-700 mb-2">Include Details</label>
+        <div class="space-y-2">
+          <label class="flex items-center">
+            <input type="checkbox" [(ngModel)]="reportData.includeTasks" name="includeTasks" class="rounded text-indigo-600">
+            <span class="ml-2">Tasks</span>
+          </label>
+          <label class="flex items-center">
+            <input type="checkbox" [(ngModel)]="reportData.includeComments" name="includeComments" class="rounded text-indigo-600">
+            <span class="ml-2">Comments</span>
+          </label>
+          <label class="flex items-center">
+            <input type="checkbox" [(ngModel)]="reportData.includeAttachments" name="includeAttachments" class="rounded text-indigo-600">
+            <span class="ml-2">Attachments</span>
+          </label>
+        </div>
+      </div>
+      
+      <div class="flex justify-end">
+        <button type="submit" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+          Generate Report
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Report Preview -->
+  <div *ngIf="generatedReport" class="bg-white rounded-xl shadow-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-semibold">Report Preview</h2>
+      <div class="flex space-x-3">
+        <button (click)="downloadReport('pdf')" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+          <i class="fas fa-file-pdf mr-2"></i> PDF
+        </button>
+        <button (click)="downloadReport('excel')" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+          <i class="fas fa-file-excel mr-2"></i> Excel
+        </button>
+      </div>
+    </div>
+    
+    <div class="border border-gray-200 rounded-lg p-6">
+      <div class="text-center mb-8">
+        <h3 class="text-2xl font-bold">{{ generatedReport.projectName }} Report</h3>
+        <p class="text-gray-600">
+          {{ generatedReport.startDate | date:'mediumDate' }} - {{ generatedReport.endDate | date:'mediumDate' }}
+        </p>
+      </div>
+      
+      <div class="mb-8">
+        <h4 class="text-lg font-semibold mb-4">Project Summary</h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="bg-blue-50 p-4 rounded-lg">
+            <p class="text-sm text-blue-600 mb-1">Total Tasks</p>
+            <p class="text-2xl font-bold">{{ generatedReport.totalTasks }}</p>
+          </div>
+          <div class="bg-green-50 p-4 rounded-lg">
+            <p class="text-sm text-green-600 mb-1">Completed Tasks</p>
+            <p class="text-2xl font-bold">{{ generatedReport.completedTasks }}</p>
+          </div>
+          <div class="bg-yellow-50 p-4 rounded-lg">
+            <p class="text-sm text-yellow-600 mb-1">Progress</p>
+            <p class="text-2xl font-bold">{{ generatedReport.progress }}%</p>
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="flex justify-between text-sm text-gray-500 mb-1">
+            <span>Progress</span>
+            <span>{{ generatedReport.progress }}%</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div class="bg-indigo-600 h-2 rounded-full" [style.width]="generatedReport.progress + '%'"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div *ngIf="reportData.includeTasks" class="mb-8">
+        <h4 class="text-lg font-semibold mb-4">Tasks</h4>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr *ngFor="let task of generatedReport.tasks">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="font-medium">{{ task.title }}</div>
+                  <div class="text-sm text-gray-500 mt-1">{{ task.description }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class="px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full" 
+                        [ngClass]="getStatusClass(task.status)">
+                    {{ getStatusText(task.status) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span [class.text-red-500]="isOverdue(task.dueDate)">
+                    {{ task.dueDate | date:'mediumDate' }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="w-full bg-gray-200 rounded-full h-1.5">
+                    <div class="bg-blue-600 h-1.5 rounded-full" [style.width]="task.progress + '%'"></div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div *ngIf="reportData.includeComments && generatedReport.comments?.length" class="mb-8">
+        <h4 class="text-lg font-semibold mb-4">Comments</h4>
+        <div class="space-y-4">
+          <div *ngFor="let comment of generatedReport.comments" class="border-l-4 border-indigo-200 pl-4 py-2">
+            <p class="font-medium">{{ comment.author }}</p>
+            <p class="text-gray-600">{{ comment.text }}</p>
+            <p class="text-sm text-gray-400">{{ comment.date | date:'medium' }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

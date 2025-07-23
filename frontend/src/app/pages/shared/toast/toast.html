@@ -1,0 +1,4 @@
+<div *ngIf="currentToast" [@toastAnimation] class="fixed top-5 right-5 z-[100] flex items-center p-4 rounded-lg shadow-lg text-white" [ngClass]="getBackgroundColorClass(currentToast.type)">
+  <i class="fas" [ngClass]="getIconClass(currentToast.type)"></i>
+  <p class="ml-3 font-medium">{{ currentToast.message }}</p>
+</div>

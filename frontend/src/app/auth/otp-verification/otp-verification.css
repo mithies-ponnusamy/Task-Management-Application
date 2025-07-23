@@ -1,0 +1,20 @@
+.auth-container {
+    background: white;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+}
+.illustration {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+.back-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+.back-btn:hover {
+    transform: translateX(-3px);
+}
+.otp-digit:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}

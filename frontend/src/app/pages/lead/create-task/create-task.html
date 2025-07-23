@@ -1,0 +1,42 @@
+<div *ngIf="showModal" class="fixed inset-0 z-50 overflow-y-auto bg-gray-600 bg-opacity-75">
+  <div class="flex items-center justify-center min-h-screen py-8">
+    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+      <form #taskForm="ngForm" (ngSubmit)="createTask(taskForm)">
+        <div class="bg-white px-6 pt-5 pb-4">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">Create New Task</h3>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2"><label class="block text-sm font-medium text-gray-700">Title <span class="text-red-500">*</span></label><input type="text" [(ngModel)]="newTask.title" name="title" required class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"></div>
+            <div class="md:col-span-2"><label class="block text-sm font-medium text-gray-700">Description</label><textarea [(ngModel)]="newTask.description" name="description" rows="4" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea></div>
+            <div><label class="block text-sm font-medium text-gray-700">Project <span class="text-red-500">*</span></label><select [(ngModel)]="newTask.projectId" name="projectId" required class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option *ngFor="let p of projects" [value]="p.id">{{ p.name }}</option></select></div>
+            <div><label class="block text-sm font-medium text-gray-700">Assignee</label><select [(ngModel)]="newTask.assignee" name="assigneeId" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option value="">Unassigned</option><option *ngFor="let m of teamMembers" [value]="m.id">{{ m.name }}</option></select></div>
+            <div><label class="block text-sm font-medium text-gray-700">Due Date <span class="text-red-500">*</span></label><input type="date" [ngModel]="newTask.dueDate | date:'yyyy-MM-dd'" (ngModelChange)="newTask.dueDate = $event" name="dueDate" required class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"></div>
+            <div><label class="block text-sm font-medium text-gray-700">Priority</label><select [(ngModel)]="newTask.priority" name="priority" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+          </div>
+          <div class="mt-4 pt-4 border-t">
+              <h4 class="text-md font-medium text-gray-800 mb-2">Attachments</h4>
+              <div class="space-y-3">
+                  <div *ngFor="let attachment of newTask.attachments; let i = index" class="flex items-center gap-2">
+                      <input type="text" [(ngModel)]="attachment.name" [name]="'att_name_' + i" placeholder="Link Name (e.g., 'Figma Design')" class="w-1/3 border border-gray-300 rounded-md shadow-sm p-2">
+                      <input type="url" [(ngModel)]="attachment.url" [name]="'att_url_' + i" placeholder="https://..." class="flex-1 border border-gray-300 rounded-md shadow-sm p-2">
+                      <button type="button" (click)="removeAttachment(i)" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                  </div>
+              </div>
+              <div class="mt-3 flex gap-4">
+                  <button type="button" (click)="addAttachmentLink()" class="text-sm text-blue-600 font-medium hover:text-blue-800">
+                      + Add Link
+                  </button>
+                  <label for="file-upload" class="text-sm text-blue-600 font-medium hover:text-blue-800 cursor-pointer">
+                      + Add File
+                  </label>
+                  <input id="file-upload" type="file" (change)="handleFileInput($event)" class="hidden"/>
+              </div>
+          </div>
+        </div>
+        <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+          <button type="button" (click)="close()" class="px-4 py-2 bg-white border border-gray-300 rounded-md">Cancel</button>
+          <button type="submit" [disabled]="!taskForm.valid" class="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400">Create Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

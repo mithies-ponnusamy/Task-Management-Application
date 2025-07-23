@@ -1,0 +1,53 @@
+<div class="max-w-4xl mx-auto p-6">
+  <h1 class="text-3xl font-bold text-gray-800 mb-6">Settings</h1>
+  
+  <div class="bg-white rounded-xl shadow-md p-6">
+    <!-- Notification Settings -->
+    <div class="mb-8">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Notification Preferences</h2>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-medium">Task Assignments</h3>
+            <p class="text-sm text-gray-500">Receive an email when a task is assigned to you.</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" [(ngModel)]="notificationPrefs.emailOnTaskAssignment">
+            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+         <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-medium">Daily Summary</h3>
+            <p class="text-sm text-gray-500">Get a daily summary of your team's progress.</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" [(ngModel)]="notificationPrefs.dailySummaryEmail">
+            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Security Settings -->
+    <div class="mb-8">
+       <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Security</h2>
+       <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-medium">Two-Factor Authentication (2FA)</h3>
+            <p class="text-sm text-gray-500">Enhance your account security.</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" [(ngModel)]="securityPrefs.twoFactorAuth">
+            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+    </div>
+    
+    <div class="flex justify-end mt-6">
+      <button (click)="saveSettings()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        Save Changes
+      </button>
+    </div>
+  </div>
+</div>

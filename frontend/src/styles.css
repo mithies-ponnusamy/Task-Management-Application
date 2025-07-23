@@ -1,0 +1,126 @@
+/* Global Styles */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Smooth Scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Tailwind CSS Variables */
+:root {
+  --primary: #6366f1;
+  --secondary: #8b5cf6;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --dark: #1e293b;
+  --light: #f8fafc;
+}
+
+/* Back to Top Button */
+.back-to-top {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  display: none;
+  z-index: 99;
+  transition: all 0.3s;
+}
+
+/* Hero Gradient */
+.hero-gradient {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+/* Full Screen Sections */
+.full-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+/* Mobile menu */
+.mobile-menu {
+  display: none;
+}
+
+.mobile-menu.active {
+  display: block;
+}
+
+/* Message box placeholder styling */
+[contenteditable][placeholder]:empty:before {
+  content: attr(placeholder);
+  color: #9CA3AF;
+}
+
+/* Custom Hero Height */
+.hero-container {
+  min-height: 91vh;
+  display: flex;
+  align-items: center;
+}
+
+/* Feature Slider */
+.features-slider {
+  overflow-x: hidden;
+  position: relative;
+}
+
+.features-track {
+  display: flex;
+  transition: transform 0.5s ease;
+  width: 300%;
+}
+
+.feature-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  padding: 0 1rem;
+}
+
+@media (max-width: 1024px) {
+  .feature-slide {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .feature-slide {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tailwind Config */
+.text-primary { color: var(--primary); }
+.bg-primary { background-color: var(--primary); }
+.text-secondary { color: var(--secondary); }
+.bg-secondary { background-color: var(--secondary); }
+.text-success { color: var(--success); }
+.bg-success { background-color: var(--success); }
+.text-warning { color: var(--warning); }
+.bg-warning { background-color: var(--warning); }
+.text-danger { color: var(--danger); }
+.bg-danger { background-color: var(--danger); }
+
+/* Ensure full height layout */
+html, body {
+  height: 100%;
+}
+
+/* Sidebar and main content adjustments */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Important for flex children to respect overflow */
+}
+
+/* Make sure router outlet content fills available space */
+router-outlet + * {
+  flex: 1;
+  display: block;
+}

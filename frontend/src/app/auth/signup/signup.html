@@ -1,0 +1,223 @@
+<a routerLink="/">
+    <button class="back-btn bg-white text-primary hover:bg-gray-100 w-12 h-12 rounded-full flex items-center justify-center shadow-lg cursor-pointer">
+        <i class="fas fa-arrow-left"></i>
+    </button>
+</a>
+
+<div class="flex flex-col md:flex-row h-screen">
+    <div class="illustration hidden md:flex flex-col items-center justify-center p-12 w-full md:w-1/2 text-white relative">
+    <div class="max-w-md">
+        <img [src]="illustration" alt="Task Management" class="w-80 h-44 ml-10 mb-10">
+        <h2 class="text-3xl font-bold mt-8 mb-4 text-center">Join Thousands of Productive Teams</h2>
+        <p class="text-xl opacity-90 text-center">GAI TaskFlow helps teams organize, prioritize, and complete work efficiently with AI-powered task management.</p>
+        <div class="mt-8 flex flex-wrap gap-4">
+        <div class="flex items-center" *ngFor="let feature of features">
+            <div class="w-8 h-8 rounded-full bg-white bg-opacity-20 flex items-center justify-center mr-2">
+            <i class="fas fa-check text-lg"></i>
+            </div>
+            <span class="text-lg">{{ feature }}</span>
+        </div>
+        </div>
+    </div>
+    </div>
+
+    <div class="w-full md:w-1/2 flex items-center justify-center p-6 sm:p-12 relative">
+    <div class="auth-container rounded-xl p-8 sm:p-10 w-full max-w-xl" style="max-height: 90vh; overflow-y: auto;">
+        <div class="text-center">
+        <div class="flex items-center justify-center mb-4">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3">
+            <img [src]="image" alt="GenFlow">
+            </div>
+            <span class="text-3xl font-bold text-gray-800">GenFlow</span>
+        </div>
+        <h1 class="text-xl font-bold text-gray-800 mb-2">Create Your Account</h1>
+        <p class="text-gray-600">Get started with your free account today</p>
+        </div>
+
+        <form (ngSubmit)="onSubmit()" #signupForm="ngForm" class="space-y-4 mt-2">
+        <div>
+            <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+            <input 
+            [(ngModel)]="formData.name" 
+            (input)="validateName()" 
+            (blur)="validateName()" 
+            [ngClass]="{ 'input-error': nameError && !nameValid }" type="text" id="name" name="name" required
+            class="input-field block w-full px-3 py-2 text-md border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+            placeholder="Your Full Name"
+            >
+            <p class="mt-1 text-sm text-red-500" *ngIf="nameError && !nameValid">Full Name is required</p> </div>
+
+        <div>
+            <label for="username" class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+            <input 
+            [(ngModel)]="formData.username" 
+            (input)="validateUsername()" 
+            (blur)="validateUsername()" 
+            [ngClass]="{ 'input-error': usernameError && !usernameValid }" type="text" id="username" name="username" required
+            class="input-field block w-full px-3 py-2 text-md border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+            placeholder="Choose a username"
+            >
+            <p class="mt-1 text-sm text-red-500" *ngIf="usernameError && !usernameValid">Username is required</p> </div>
+
+        <div>
+            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+            <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-envelope text-gray-400"></i>
+            </div>
+            <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                [(ngModel)]="formData.email"
+                required 
+                (input)="validateEmail()"
+                (blur)="validateEmail()"
+                class="input-field block w-full pl-8 pr-3 py-2 text-md border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" 
+                [ngClass]="{
+                'input-success': emailValid,
+                'input-error': emailError && !emailValid
+                }"
+                placeholder="you@example.com"
+                autocomplete="email"
+            >
+            <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none" 
+                    *ngIf="emailValid">
+                <i class="fas fa-check-circle text-green-500"></i>
+            </div>
+            </div>
+            <p class="mt-1 text-sm text-red-500" *ngIf="emailError && !emailValid">Please enter a valid email address</p>
+        </div>
+
+        <div>
+            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-lock text-gray-400"></i>
+            </div>
+            <input 
+                [type]="showPassword ? 'text' : 'password'" 
+                id="password" 
+                name="password" 
+                [(ngModel)]="formData.password"
+                required 
+                [disabled]="!emailValid"
+                (input)="validatePassword(); showPasswordRequirements = true;"
+                (focus)="showPasswordRequirements = true"
+                (blur)="onPasswordBlur()"
+                class="input-field block w-full pl-8 pr-9 py-2 text-md border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" 
+                [ngClass]="{
+                'bg-gray-100': !emailValid,
+                'input-success': passwordValid,
+                'input-error': passwordError && !passwordValid
+                }"
+                placeholder="••••••••"
+                autocomplete="new-password"
+            >
+            <button 
+                type="button" 
+                class="absolute inset-y-0 right-0 pr-2 text-gray-400 hover:text-gray-500 focus:outline-none" 
+                (click)="togglePassword()">
+                <i [ngClass]="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+            </button>
+            </div>
+            
+            <div *ngIf="showPasswordRequirements" class="mt-2">
+            <p class="text-sm text-gray-600 mb-1">Password must contain:</p>
+            <ul class="text-sm space-y-1">
+                <li class="flex items-center">
+                <span [ngClass]="lengthValid ? 'mr-1 text-green-500' : 'mr-1 text-gray-400'">{{ lengthValid ? '✓' : '✗' }}</span>
+                <span>Minimum 8 characters</span>
+                </li>
+                <li class="flex items-center">
+                <span [ngClass]="numberValid ? 'mr-1 text-green-500' : 'mr-1 text-gray-400'">{{ numberValid ? '✓' : '✗' }}</span>
+                <span>At least 1 number</span>
+                </li>
+                <li class="flex items-center">
+                <span [ngClass]="specialValid ? 'mr-1 text-green-500' : 'mr-1 text-gray-400'">{{ specialValid ? '✓' : '✗' }}</span>
+                <span>At least 1 special character</span>
+                </li>
+            </ul>
+            <div class="flex mt-2 space-x-1">
+                <div class="h-1 flex-1 rounded-full" [style.background-color]="getStrengthColor(0)"></div>
+                <div class="h-1 flex-1 rounded-full" [style.background-color]="getStrengthColor(1)"></div>
+                <div class="h-1 flex-1 rounded-full" [style.background-color]="getStrengthColor(2)"></div>
+                <div class="h-1 flex-1 rounded-full" [style.background-color]="getStrengthColor(3)"></div>
+            </div>
+            </div>
+            <p class="mt-1 text-sm text-red-500" *ngIf="passwordError && !passwordValid">Password does not meet requirements</p>
+        </div>
+
+        <div>
+            <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+            <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-lock text-gray-400"></i>
+            </div>
+            <input 
+                [type]="showConfirmPassword ? 'text' : 'password'" 
+                id="confirm-password" 
+                name="confirm-password" 
+                [(ngModel)]="formData.confirmPassword"
+                required 
+                [disabled]="!passwordValid"
+                (input)="validateConfirmPassword()"
+                class="input-field block w-full pl-8 pr-9 py-2 text-md border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" 
+                [ngClass]="{
+                'bg-gray-100': !passwordValid,
+                'input-success': confirmPasswordValid,
+                'input-error': confirmPasswordError && !confirmPasswordValid
+                }"
+                placeholder="••••••••"
+                autocomplete="new-password"
+            >
+            <button 
+                type="button" 
+                class="absolute inset-y-0 right-0 pr-2 text-gray-400 hover:text-gray-500 focus:outline-none" 
+                (click)="toggleConfirmPassword()">
+                <i [ngClass]="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+            </button>
+            </div>
+            <p class="mt-1 text-sm" 
+                [ngClass]="confirmPasswordValid ? 'text-green-500' : 'text-red-500'" 
+                *ngIf="formData.confirmPassword.length > 0 || confirmPasswordError">
+            {{ confirmPasswordValid ? 'Passwords match' : 'Passwords do not match' }}
+            </p>
+        </div>
+
+        <div class="pt-2">
+            <label class="checkbox-container block text-base text-gray-700">
+            I agree to the <a href="#" class="text-primary hover:text-primary/80 font-medium">Terms and Conditions</a> and <a href="#" class="text-primary hover:text-primary/80 font-medium">Privacy Policy</a>
+            <input type="checkbox" [(ngModel)]="formData.terms" name="terms" required (change)="validateTerms()">
+            <span class="checkmark"></span>
+            </label>
+            <p class="mt-1 text-sm text-red-500" *ngIf="termsError && !termsValid">You must agree to the terms</p>
+        </div>
+
+        <div class="pt-4">
+            <button 
+            type="submit" 
+            [disabled]="isLoading || !isButtonEnabled" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-lg font-medium text-white transition-colors duration-200"
+            [ngClass]="{
+                'bg-primary hover:bg-primary/90': isButtonEnabled, 'bg-gray-400 cursor-not-allowed': !isButtonEnabled
+            }">
+            <span *ngIf="!isLoading">Sign Up</span>
+            <span *ngIf="isLoading">
+                <i class="fas fa-spinner fa-spin mr-2"></i> Registering...
+            </span>
+            </button>
+        </div>
+        </form>
+
+        <div class="mt-4 text-center text-base text-gray-600">
+        Already have an account? 
+        <a routerLink="/login">
+            <button 
+                class="font-medium text-primary hover:text-primary/80 cursor-pointer bg-transparent border-none">
+                Log in
+            </button>
+        </a>
+        </div>
+    </div>
+    </div>
+</div>
