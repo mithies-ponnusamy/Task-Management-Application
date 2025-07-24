@@ -1,9 +1,9 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { User, Notification } from '../../../model/user.model';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
-import { UserService } from '../../../core/services/user/user';
+import { Auth } from '../../../core/services/auth/auth';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Sidebar } from '../sidebar/sidebar';
@@ -48,14 +48,18 @@ export class LeadLayout implements OnInit, OnDestroy {
   unreadNotifications = 0;
 
   constructor(
-    private userService: UserService,
+    private authService: Auth,
     private router: Router,
     private localStorageService: LocalStorageService,
-    private modalService: ModalService
-  ) {}
+    private modalService: ModalService,
+    private cdr: ChangeDetectorRef
+  ) {
+    // Initialize currentUser as null to prevent undefined errors
+    this.currentUser = null;
+  }
 
   ngOnInit(): void {
-    this.currentUser = this.userService.getCurrentUser();
+    this.loadCurrentUser();
     
     this.routerSubscription = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
@@ -65,6 +69,51 @@ export class LeadLayout implements OnInit, OnDestroy {
       });
 
     this.loadNotifications();
+  }
+
+  loadCurrentUser(): void {
+    this.authService.leadGetProfile().subscribe({
+      next: (user) => {
+        // Use setTimeout to avoid ExpressionChangedAfterItHasBeenCheckedError
+        setTimeout(() => {
+          this.currentUser = {
+            id: user._id || user.id,
+            _id: user._id,
+            email: user.email,
+            role: user.role,
+            name: user.name,
+            username: user.username,
+            phone: user.phone,
+            gender: user.gender,
+            dob: user.dob,
+            department: user.department,
+            team: user.team,
+            status: user.status,
+            employeeType: user.employeeType,
+            location: user.location,
+            joinDate: user.joinDate,
+            lastActive: user.lastActive,
+            address: user.address,
+            about: user.about,
+            profileImg: user.profileImg,
+            password: '', // Don't expose password
+            notifications: user.notifications,
+            performance: user.performance,
+            projects: user.projects,
+            completionRate: user.completionRate
+          };
+          this.cdr.detectChanges();
+        }, 0);
+      },
+      error: (error) => {
+        console.error('Error loading current user:', error);
+        // Fallback to stored user data
+        setTimeout(() => {
+          this.currentUser = this.authService.getCurrentUser();
+          this.cdr.detectChanges();
+        }, 0);
+      }
+    });
   }
 
   loadNotifications(): void {

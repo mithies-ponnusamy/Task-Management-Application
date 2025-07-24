@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { 
   faUsers, faProjectDiagram, faSearch, faFilter, faPlus, 
   faEye, faEdit, faTrashAlt, faTimes, faPhoneAlt, 
@@ -13,6 +13,7 @@ import { trigger, state, style, transition, animate } from '@angular/animations'
 import { ToastService } from '../../../core/services/toast/toast';
 import { DialogService } from '../../../core/services/dialog/dialog';
 import { Auth } from '../../../core/services/auth/auth';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-user-management',
@@ -39,7 +40,7 @@ import { Auth } from '../../../core/services/auth/auth';
     ])
   ]
 })
-export class UserManagement implements OnInit {
+export class UserManagement implements OnInit, OnDestroy {
   // Icons used in the component
   faUsers = faUsers;
   faProjectDiagram = faProjectDiagram;
@@ -128,6 +129,9 @@ export class UserManagement implements OnInit {
   messageDialogMessage: string = '';
   messageType: 'success' | 'error' | 'info' = 'success';
 
+  // Subscriptions
+  private teamsRefreshSubscription?: Subscription;
+
   constructor(
     private localStorage: LocalStorageService,
     private dialogService: DialogService,
@@ -138,8 +142,21 @@ export class UserManagement implements OnInit {
   ) {}
 
   ngOnInit(): void {
-  this.loadInitialData();
-}
+    this.loadInitialData();
+    
+    // Subscribe to teams refresh events from other components
+    this.teamsRefreshSubscription = this.authService.refreshTeams$.subscribe(() => {
+      console.log('UserManagement: Received teams refresh event');
+      this.loadTeams();
+    });
+  }
+
+  ngOnDestroy(): void {
+    // Clean up subscriptions
+    if (this.teamsRefreshSubscription) {
+      this.teamsRefreshSubscription.unsubscribe();
+    }
+  }
 
   private loadInitialData(): void {
     this.loadUsers();
@@ -164,11 +181,38 @@ export class UserManagement implements OnInit {
   private loadTeams(): void {
     this.authService.adminGetAllTeams().subscribe({
       next: (teams) => {
-        // Normalize team data - convert populated lead objects to IDs
-        this.teams = teams.map(team => ({
-          ...team,
-          lead: typeof team.lead === 'object' && team.lead ? (team.lead as any)._id || (team.lead as any).id : team.lead
+        console.log('Raw teams data from backend:', teams);
+        
+        // Process teams data to handle populated fields correctly
+        this.teams = teams.map((team: any) => ({
+          id: team._id || team.id,
+          name: team.name,
+          department: team.department,
+          description: team.description,
+          lead: team.lead?._id || team.lead,
+          leadName: team.lead?.name || 'Unknown',
+          members: Array.isArray(team.members) ? team.members.length : 0,
+          projects: Array.isArray(team.projects) ? team.projects.length : 0,
+          completionRate: team.completionRate || 0,
+          parentTeam: team.parentTeam?._id || team.parentTeam,
+          subTeams: Array.isArray(team.subTeams) ? team.subTeams.map((subTeam: any) => ({
+            id: subTeam._id || subTeam.id,
+            name: subTeam.name,
+            department: subTeam.department,
+            lead: subTeam.lead?._id || subTeam.lead,
+            leadName: subTeam.lead?.name || 'Unknown',
+            members: Array.isArray(subTeam.members) ? subTeam.members.length : 0,
+            projects: Array.isArray(subTeam.projects) ? subTeam.projects.length : 0,
+            completionRate: subTeam.completionRate || 0
+          })) : [],
+          leadDetails: team.lead,
+          memberDetails: team.members,
+          projectDetails: team.projects,
+          createdAt: team.createdAt,
+          updatedAt: team.updatedAt
         }));
+        
+        console.log('Processed teams data:', this.teams);
         this.filterTeams();
       },
       error: (err) => {
@@ -448,7 +492,14 @@ export class UserManagement implements OnInit {
 
   //Team Actions
   viewTeamDetails(team: Team): void {
-    this.authService.adminGetTeamById(team.id).subscribe({
+    const teamId = team._id || team.id;
+    if (!teamId) {
+      console.error('No team ID available');
+      this.toastService.show('Team ID not found', 'error');
+      return;
+    }
+    
+    this.authService.adminGetTeamById(teamId).subscribe({
       next: (detailedTeam) => {
         this.selectedTeamForFilter = detailedTeam;
         this.showTeamDetailsModal = true;
@@ -459,8 +510,8 @@ export class UserManagement implements OnInit {
         // Fallback to basic team data if API fails
         this.selectedTeamForFilter = {
           ...team,
-          memberDetails: this.getTeamMembers(team.id),
-          projectDetails: this.getTeamProjects(team.id)
+          memberDetails: this.getTeamMembers(teamId),
+          projectDetails: this.getTeamProjects(teamId)
         };
         this.showTeamDetailsModal = true;
         this.cdr.detectChanges();
@@ -487,9 +538,16 @@ export class UserManagement implements OnInit {
 
   // Executes team deletion (Backend)
   private executeDeleteTeam(team: Team): void {
-    this.authService.adminDeleteTeam(team.id).subscribe({
+    const teamId = team._id || team.id;
+    if (!teamId) {
+      console.error('No team ID available for deletion');
+      this.toastService.show('Team ID not found', 'error');
+      return;
+    }
+
+    this.authService.adminDeleteTeam(teamId).subscribe({
       next: () => {
-        this.teams = this.teams.filter(t => t.id !== team.id);
+        this.teams = this.teams.filter(t => (t._id || t.id) !== teamId);
         this.filterTeams();
         this.closeModals();
         this.toastService.show(`Team ${team.name} was deleted successfully`, 'success');
@@ -511,7 +569,6 @@ export class UserManagement implements OnInit {
   // Opens the add sub-team modal
   openAddSubTeamModal(): void {
     this.newSubTeam = this.getDefaultTeam();
-    // Don't set parentTeam here - user must select it in the form
     this.teamFormErrors = {};
     this.showAddSubTeamModal = true;
   }
@@ -524,9 +581,9 @@ export class UserManagement implements OnInit {
       const teamToCreate = {
         name: this.newTeam.name,
         department: this.newTeam.department,
-        lead: this.newTeam.lead && this.newTeam.lead.trim() !== '' ? this.newTeam.lead : undefined,
-        description: this.newTeam.description || '',
-        parentTeam: this.newTeam.parentTeam && typeof this.newTeam.parentTeam === 'string' && this.newTeam.parentTeam.trim() !== '' ? this.newTeam.parentTeam : undefined
+        lead: this.newTeam.lead,
+        description: this.newTeam.description,
+        parentTeam: this.newTeam.parentTeam
       };
 
       this.authService.adminCreateTeam(teamToCreate).subscribe({
@@ -557,9 +614,9 @@ export class UserManagement implements OnInit {
       const subTeamToCreate = {
         name: this.newSubTeam.name,
         department: this.newSubTeam.department,
-        lead: this.newSubTeam.lead && this.newSubTeam.lead.trim() !== '' ? this.newSubTeam.lead : undefined,
-        description: this.newSubTeam.description || '',
-        parentTeam: this.newSubTeam.parentTeam && typeof this.newSubTeam.parentTeam === 'string' && this.newSubTeam.parentTeam.trim() !== '' ? this.newSubTeam.parentTeam : undefined
+        lead: this.newSubTeam.lead,
+        description: this.newSubTeam.description,
+        parentTeam: this.newSubTeam.parentTeam
       };
 
       this.authService.adminCreateTeam(subTeamToCreate).subscribe({
@@ -594,18 +651,25 @@ export class UserManagement implements OnInit {
   private executeSaveTeam(): void {
     if (!this.selectedTeamForFilter) return;
 
+    const teamId = this.selectedTeamForFilter._id || this.selectedTeamForFilter.id;
+    if (!teamId) {
+      console.error('No team ID available for update');
+      this.toastService.show('Team ID not found', 'error');
+      return;
+    }
+
     this.isSubmitting = true;
     const teamToUpdate = {
       name: this.selectedTeamForFilter.name,
       department: this.selectedTeamForFilter.department,
-      lead: this.selectedTeamForFilter.lead && this.selectedTeamForFilter.lead.trim() !== '' ? this.selectedTeamForFilter.lead : undefined,
-      description: this.selectedTeamForFilter.description || '',
-      parentTeam: this.selectedTeamForFilter.parentTeam && typeof this.selectedTeamForFilter.parentTeam === 'string' && this.selectedTeamForFilter.parentTeam.trim() !== '' ? this.selectedTeamForFilter.parentTeam : undefined
+      lead: this.selectedTeamForFilter.lead,
+      description: this.selectedTeamForFilter.description,
+      parentTeam: this.selectedTeamForFilter.parentTeam
     };
 
-    this.authService.adminUpdateTeam(this.selectedTeamForFilter.id, teamToUpdate).subscribe({
+    this.authService.adminUpdateTeam(teamId, teamToUpdate).subscribe({
       next: (updatedTeam) => {
-        const index = this.teams.findIndex(t => t.id === updatedTeam.id);
+        const index = this.teams.findIndex(t => (t._id || t.id) === teamId);
         if (index !== -1) {
           this.teams[index] = updatedTeam;
         }
@@ -763,8 +827,6 @@ export class UserManagement implements OnInit {
       id: '', // Client-side generated ID for local teams
       name: '',
       department: '',
-      lead: undefined, // Set to undefined instead of empty string
-      description: '', // Add description field
       members: 0,
       projects: 0,
       completionRate: 0,
@@ -908,9 +970,11 @@ export class UserManagement implements OnInit {
       isValid = false;
     }
 
-    // Parent team validation is not enforced for general sub-team creation
-    // Users can create sub-teams without pre-selecting parent team
-    // The backend will handle parent team as optional
+    // Parent team is required if creating a sub-team
+    if (this.showAddSubTeamModal && !team.parentTeam) {
+      this.teamFormErrors.parentTeam = 'Parent team is required';
+      isValid = false;
+    }
 
     return isValid;
   }
@@ -1074,9 +1138,10 @@ export class UserManagement implements OnInit {
   }
 
   // Retrieves projects associated with a specific team (based on team name in sample data).
-  getTeamProjects(teamName: string): Project[] {
-    const projects = this.localStorage.getProjects<Project[]>() || [];
-    return projects.filter(project => project.team === teamName);
+  getTeamProjects(teamId: string): any[] {
+    const team = this.teams.find(t => t.id === teamId);
+    if (!team || !team.projectDetails) return [];
+    return team.projectDetails;
   }
 
   // Finds a user by their name.
@@ -1086,7 +1151,14 @@ export class UserManagement implements OnInit {
 
   // Finds a user by their ID.
   getUserById(id: string): User | undefined {
-    return this.users.find(user => user._id === id || user.id === id);
+    return this.users.find(user => (user._id || user.id) === id);
+  }
+
+  // Gets team name by ID for display purposes
+  getTeamNameById(id: string | null | undefined): string {
+    if (!id) return 'None';
+    const team = this.teams.find(team => (team._id || team.id) === id);
+    return team ? team.name : 'Unknown Team';
   }
 
   // Opens the add sub-team modal and pre-fills parent team information.
@@ -1121,98 +1193,14 @@ export class UserManagement implements OnInit {
 
   addSelectedMembers() {
     if (!this.selectedTeamForFilter || !this.selectedMembers.length) return;
-    
-    const memberIds = this.selectedMembers.map(member => member.id);
-    
-    this.authService.adminAddTeamMembers(this.selectedTeamForFilter.id, memberIds).subscribe({
-      next: (updatedTeam) => {
-        // Update the team in the local array
-        const index = this.teams.findIndex(t => t.id === updatedTeam.id);
-        if (index !== -1) {
-          this.teams[index] = updatedTeam;
-        }
-        
-        // Update users' team assignment in local array
-        this.selectedMembers.forEach(member => {
-          const userIndex = this.users.findIndex(u => u.id === member.id);
-          if (userIndex !== -1) {
-            this.users[userIndex].team = this.selectedTeamForFilter?.id || null;
-          }
-        });
-        
-        this.showAddMemberModal = false;
-        this.selectedMembers = [];
-        this.filterTeams();
-        this.applyFilters();
-        this.toastService.show(`Members added to ${updatedTeam.name} successfully`, 'success');
-      },
-      error: (err) => {
-        console.error('Error adding team members:', err);
-        this.toastService.show(`Failed to add members: ${err.message}`, 'error');
-      }
+    // Example logic: Add selected members to the selected team
+    this.selectedMembers.forEach(member => {
+      member.team = this.selectedTeamForFilter?.name;
     });
-  }
-
-  // Opens the add member modal for a team
-  openAddMemberModal(team: Team): void {
-    this.selectedTeamForFilter = team;
+    // Optionally, update the team members list or persist changes
+    this.showAddMemberModal = false;
     this.selectedMembers = [];
-    // Get users not currently in this team
-    this.availableMembers = this.users.filter(user => user.team !== team.id);
-    this.memberSearchTerm = '';
-    this.showAddMemberModal = true;
-  }
-
-  // Toggles selection of a member for adding to team
-  toggleMemberSelection(member: User): void {
-    const index = this.selectedMembers.findIndex(m => m.id === member.id);
-    if (index === -1) {
-      this.selectedMembers.push(member);
-    } else {
-      this.selectedMembers.splice(index, 1);
-    }
-  }
-
-  // Checks if a member is currently selected
-  isMemberSelected(member: User): boolean {
-    return this.selectedMembers.some(m => m.id === member.id);
-  }
-
-  // Removes a member from a team
-  removeMemberFromTeam(team: Team, member: User): void {
-    this.dialogService.open({
-      title: 'Remove Member',
-      message: `Are you sure you want to remove ${member.name} from ${team.name}?`,
-      confirmButtonText: 'Remove',
-      confirmButtonClass: 'bg-red-600 hover:bg-red-700',
-      onConfirm: () => this.executeRemoveMember(team, member)
-    });
-  }
-
-  private executeRemoveMember(team: Team, member: User): void {
-    this.authService.adminRemoveTeamMembers(team.id, [member.id]).subscribe({
-      next: (updatedTeam) => {
-        // Update the team in the local array
-        const index = this.teams.findIndex(t => t.id === updatedTeam.id);
-        if (index !== -1) {
-          this.teams[index] = updatedTeam;
-        }
-        
-        // Update user's team assignment in local array
-        const userIndex = this.users.findIndex(u => u.id === member.id);
-        if (userIndex !== -1) {
-          this.users[userIndex].team = null;
-        }
-        
-        this.filterTeams();
-        this.applyFilters();
-        this.toastService.show(`${member.name} removed from ${team.name} successfully`, 'success');
-      },
-      error: (err) => {
-        console.error('Error removing team member:', err);
-        this.toastService.show(`Failed to remove member: ${err.message}`, 'error');
-      }
-    });
+    // You may want to show a success message or refresh the team members list
   }
 
   private showToast(message: string, type: 'success' | 'error' | 'warning' | 'info') {

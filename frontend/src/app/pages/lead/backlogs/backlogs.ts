@@ -80,7 +80,7 @@ export class Backlogs implements OnInit, OnDestroy {
       this.teamMembers = this.userService.getTeamMembers(currentUser.team);
       const projectIds = this.projects.map(p => p.id);
       
-      this.sprints = this.localStorage.getSprints<Sprint[]>()?.filter(s => projectIds.includes(s.project)) || [];
+      this.sprints = this.localStorage.getSprints<Sprint[]>()?.filter(s => projectIds.includes(s.projectId)) || [];
       this.taskService.getTasks().subscribe(tasks => {
         this.allTasks = tasks.filter(t => projectIds.includes(t.projectId));
         this.onProjectFilterChange(); // Initial filter application
@@ -91,9 +91,9 @@ export class Backlogs implements OnInit, OnDestroy {
   onProjectFilterChange(): void {
       if (this.filters.projectId === 'all') {
           const projectIds = this.projects.map(p => p.id);
-          this.filteredSprints = this.sprints.filter(s => projectIds.includes(s.project));
+          this.filteredSprints = this.sprints.filter(s => projectIds.includes(s.projectId));
       } else {
-          this.filteredSprints = this.sprints.filter(s => s.project === this.filters.projectId);
+          this.filteredSprints = this.sprints.filter(s => s.projectId === this.filters.projectId);
       }
       this.filters.sprintId = 'all'; // Reset sprint filter
       this.applyFilters();

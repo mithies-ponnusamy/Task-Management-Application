@@ -11,31 +11,20 @@ const getProjects = asyncHandler(async (req, res) => {
     .populate('team', 'name department')
     .populate('lead', 'name email profileImg')
     .populate('teamMembers', 'name email profileImg role')
-    .populate('tasks', 'title status priority')
     .lean();
 
-  // Calculate progress if not set
-  const projectsWithProgress = projects.map(project => {
-    if (project.tasks && project.tasks.length > 0) {
-      const completedTasks = project.tasks.filter(task => task.status === 'done').length;
-      const calculatedProgress = Math.round((completedTasks / project.tasks.length) * 100);
-      project.progress = project.progress || calculatedProgress;
-    }
-    return project;
-  });
-
-  res.json(projectsWithProgress);
+  res.json(projects);
 });
 
-// @desc    Get a single project by ID
+// @desc    Get project by ID
 // @route   GET /api/admin/projects/:id
 // @access  Private/Admin
 const getProjectById = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.id)
-    .populate('team', 'name department members')
-    .populate('lead', 'name email profileImg phone role')
-    .populate('teamMembers', 'name email profileImg role department')
-    .populate('tasks', 'title description assignee status priority startTime endTime');
+    .populate('team', 'name department')
+    .populate('lead', 'name email profileImg')
+    .populate('teamMembers', 'name email profileImg role')
+    .lean();
 
   if (!project) {
     res.status(404);
@@ -49,9 +38,7 @@ const getProjectById = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/projects
 // @access  Private/Admin
 const createProject = asyncHandler(async (req, res) => {
-  const { name, description, team, lead, deadline, priority, startDate, teamMembers } = req.body;
-
-  console.log('Creating project with data:', { name, description, team, lead, deadline, priority, startDate, teamMembers });
+  const { name, description, team, lead, startDate, deadline, priority, teamMembers } = req.body;
 
   if (!name || !deadline) {
     res.status(400);
@@ -59,83 +46,22 @@ const createProject = asyncHandler(async (req, res) => {
   }
 
   try {
-    // Validate team ID if provided
-    let validatedTeam = null;
-    if (team && team !== 'undefined' && team !== 'null' && team.toString().trim() !== '') {
-      const mongoose = require('mongoose');
-      const teamStr = team.toString().trim();
-      
-      if (!mongoose.Types.ObjectId.isValid(teamStr)) {
-        res.status(400);
-        throw new Error(`Invalid team ID format: ${teamStr}`);
-      }
-      
-      const teamDoc = await Team.findById(teamStr);
-      if (!teamDoc) {
-        res.status(400);
-        throw new Error('Team not found');
-      }
-      validatedTeam = teamStr;
-    }
-
-    // Validate lead ID if provided
-    let validatedLead = null;
-    if (lead && lead !== 'undefined' && lead !== 'null' && lead.toString().trim() !== '') {
-      const mongoose = require('mongoose');
-      const leadStr = lead.toString().trim();
-      
-      if (!mongoose.Types.ObjectId.isValid(leadStr)) {
-        res.status(400);
-        throw new Error(`Invalid lead ID format: ${leadStr}`);
-      }
-      
-      const leadUser = await User.findById(leadStr);
-      if (!leadUser) {
-        res.status(400);
-        throw new Error('Lead user not found');
-      }
-      validatedLead = leadStr;
-    }
-
-    // Validate team members if provided
-    let validatedTeamMembers = [];
-    if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
-      const mongoose = require('mongoose');
-      for (const memberId of teamMembers) {
-        if (memberId && memberId.toString().trim() !== '') {
-          const memberStr = memberId.toString().trim();
-          if (!mongoose.Types.ObjectId.isValid(memberStr)) {
-            res.status(400);
-            throw new Error(`Invalid team member ID format: ${memberStr}`);
-          }
-          
-          const memberUser = await User.findById(memberStr);
-          if (!memberUser) {
-            res.status(400);
-            throw new Error(`Team member not found: ${memberStr}`);
-          }
-          validatedTeamMembers.push(memberStr);
-        }
-      }
-    }
-
     const project = await Project.create({
       name,
-      description: description || '',
-      team: validatedTeam,
-      lead: validatedLead,
-      startDate: startDate || new Date(),
+      description,
+      team,
+      lead,
+      startDate: startDate ? new Date(startDate) : new Date(),
       deadline: new Date(deadline),
       priority: priority || 'medium',
+      teamMembers: teamMembers || [],
       status: 'not-started',
-      progress: 0,
-      teamMembers: validatedTeamMembers,
-      tasks: []
+      progress: 0
     });
 
-    // Update team's projects array if team is assigned
-    if (validatedTeam) {
-      await Team.findByIdAndUpdate(validatedTeam, {
+    // If team is assigned, update the team to include this project
+    if (team) {
+      await Team.findByIdAndUpdate(team, {
         $addToSet: { projects: project._id }
       });
     }
@@ -143,7 +69,7 @@ const createProject = asyncHandler(async (req, res) => {
     const populatedProject = await Project.findById(project._id)
       .populate('team', 'name department')
       .populate('lead', 'name email profileImg')
-      .populate('teamMembers', 'name email profileImg');
+      .populate('teamMembers', 'name email profileImg role');
 
     res.status(201).json(populatedProject);
   } catch (error) {
@@ -156,126 +82,52 @@ const createProject = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/projects/:id
 // @access  Private/Admin
 const updateProject = asyncHandler(async (req, res) => {
-  const { name, description, team, lead, deadline, priority, startDate, status, progress, teamMembers } = req.body;
-
-  console.log('Updating project with data:', { id: req.params.id, name, description, team, lead, deadline, priority, startDate, status, progress, teamMembers });
-
   const project = await Project.findById(req.params.id);
+
   if (!project) {
     res.status(404);
     throw new Error('Project not found');
   }
 
   try {
-    // Validate team ID if provided
-    let validatedTeam = project.team;
-    if (team !== undefined) {
-      if (team && team !== 'undefined' && team !== 'null' && team.toString().trim() !== '') {
-        const mongoose = require('mongoose');
-        const teamStr = team.toString().trim();
-        
-        if (!mongoose.Types.ObjectId.isValid(teamStr)) {
-          res.status(400);
-          throw new Error(`Invalid team ID format: ${teamStr}`);
-        }
-        
-        const teamDoc = await Team.findById(teamStr);
-        if (!teamDoc) {
-          res.status(400);
-          throw new Error('Team not found');
-        }
-        validatedTeam = teamStr;
-      } else {
-        validatedTeam = null;
-      }
-    }
+    const { name, description, team, lead, startDate, deadline, priority, teamMembers, status, progress } = req.body;
 
-    // Validate lead ID if provided
-    let validatedLead = project.lead;
-    if (lead !== undefined) {
-      if (lead && lead !== 'undefined' && lead !== 'null' && lead.toString().trim() !== '') {
-        const mongoose = require('mongoose');
-        const leadStr = lead.toString().trim();
-        
-        if (!mongoose.Types.ObjectId.isValid(leadStr)) {
-          res.status(400);
-          throw new Error(`Invalid lead ID format: ${leadStr}`);
-        }
-        
-        const leadUser = await User.findById(leadStr);
-        if (!leadUser) {
-          res.status(400);
-          throw new Error('Lead user not found');
-        }
-        validatedLead = leadStr;
-      } else {
-        validatedLead = null;
-      }
-    }
+    // Store old team for cleanup
+    const oldTeam = project.team;
 
-    // Validate team members if provided
-    let validatedTeamMembers = project.teamMembers;
-    if (teamMembers !== undefined) {
-      validatedTeamMembers = [];
-      if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
-        const mongoose = require('mongoose');
-        for (const memberId of teamMembers) {
-          if (memberId && memberId.toString().trim() !== '') {
-            const memberStr = memberId.toString().trim();
-            if (!mongoose.Types.ObjectId.isValid(memberStr)) {
-              res.status(400);
-              throw new Error(`Invalid team member ID format: ${memberStr}`);
-            }
-            
-            const memberUser = await User.findById(memberStr);
-            if (!memberUser) {
-              res.status(400);
-              throw new Error(`Team member not found: ${memberStr}`);
-            }
-            validatedTeamMembers.push(memberStr);
-          }
-        }
-      }
-    }
+    // Update project fields
+    project.name = name || project.name;
+    project.description = description || project.description;
+    project.team = team || project.team;
+    project.lead = lead || project.lead;
+    project.startDate = startDate ? new Date(startDate) : project.startDate;
+    project.deadline = deadline ? new Date(deadline) : project.deadline;
+    project.priority = priority || project.priority;
+    project.teamMembers = teamMembers || project.teamMembers;
+    project.status = status || project.status;
+    project.progress = progress !== undefined ? progress : project.progress;
 
-    // Handle team change - update teams' projects arrays
-    if (validatedTeam && (!project.team || validatedTeam.toString() !== project.team.toString())) {
-      // Remove from old team's projects
-      if (project.team) {
-        await Team.findByIdAndUpdate(project.team, {
-          $pull: { projects: project._id }
-        });
-      }
+    await project.save();
 
-      // Add to new team's projects
-      await Team.findByIdAndUpdate(validatedTeam, {
-        $addToSet: { projects: project._id }
-      });
-    } else if (!validatedTeam && project.team) {
-      // Remove from old team if team is being removed
-      await Team.findByIdAndUpdate(project.team, {
+    // Update team relationships
+    if (oldTeam && oldTeam.toString() !== team) {
+      // Remove project from old team
+      await Team.findByIdAndUpdate(oldTeam, {
         $pull: { projects: project._id }
       });
     }
 
-    const updatedProject = await Project.findByIdAndUpdate(
-      req.params.id,
-      {
-        name: name || project.name,
-        description: description !== undefined ? description : project.description,
-        team: validatedTeam,
-        lead: validatedLead,
-        startDate: startDate ? new Date(startDate) : project.startDate,
-        deadline: deadline ? new Date(deadline) : project.deadline,
-        priority: priority || project.priority,
-        status: status || project.status,
-        progress: progress !== undefined ? progress : project.progress,
-        teamMembers: validatedTeamMembers
-      },
-      { new: true }
-    ).populate('team', 'name department')
-     .populate('lead', 'name email profileImg')
-     .populate('teamMembers', 'name email profileImg');
+    if (team && (!oldTeam || oldTeam.toString() !== team)) {
+      // Add project to new team
+      await Team.findByIdAndUpdate(team, {
+        $addToSet: { projects: project._id }
+      });
+    }
+
+    const updatedProject = await Project.findById(project._id)
+      .populate('team', 'name department')
+      .populate('lead', 'name email profileImg')
+      .populate('teamMembers', 'name email profileImg role');
 
     res.json(updatedProject);
   } catch (error) {
@@ -296,14 +148,16 @@ const deleteProject = asyncHandler(async (req, res) => {
   }
 
   try {
-    // Remove project from team's projects array
+    // Remove project from team
     if (project.team) {
       await Team.findByIdAndUpdate(project.team, {
         $pull: { projects: project._id }
       });
     }
 
-    await Project.findByIdAndDelete(req.params.id);
+    // Delete the project
+    await project.deleteOne();
+
     res.json({ message: 'Project deleted successfully' });
   } catch (error) {
     console.error('Error deleting project:', error);

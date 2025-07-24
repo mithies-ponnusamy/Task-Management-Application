@@ -55,83 +55,48 @@ const getTeamById = asyncHandler(async (req, res) => {
 // @desc    Create a new team
 // @route   POST /api/admin/teams
 // @access  Private/Admin
+// teamController.js - Update createTeam method
 const createTeam = asyncHandler(async (req, res) => {
   const { name, department, lead, description, parentTeam } = req.body;
-
-  console.log('Creating team with data:', { name, department, lead, description, parentTeam });
 
   if (!name || !department) {
     res.status(400);
     throw new Error('Name and department are required');
   }
 
-  const teamExists = await Team.findOne({ name });
+  // Check for team name uniqueness within the same parent context
+  const existingTeamQuery = { name };
+  if (parentTeam) {
+    // For sub-teams, check uniqueness within the same parent
+    existingTeamQuery.parentTeam = parentTeam;
+  } else {
+    // For main teams, check that no main team (without parent) has this name
+    existingTeamQuery.parentTeam = { $in: [null, undefined] };
+  }
+
+  const teamExists = await Team.findOne(existingTeamQuery);
   if (teamExists) {
-    res.status(400).json({ message: 'Team already exists' });
+    const errorMessage = parentTeam ? 
+      'A sub-team with this name already exists under the selected parent team' : 
+      'A main team with this name already exists';
+    res.status(400).json({ message: errorMessage });
     return;
   }
 
   try {
-    // Validate lead ID if provided
-    let validatedLead = null;
-    if (lead && lead !== 'undefined' && lead !== 'null' && lead.toString().trim() !== '') {
-      const mongoose = require('mongoose');
-      const leadStr = lead.toString().trim();
-      
-      console.log('Validating lead ID:', leadStr);
-      
-      if (!mongoose.Types.ObjectId.isValid(leadStr)) {
-        console.log('Invalid lead ID format:', leadStr);
-        res.status(400);
-        throw new Error(`Invalid lead ID format: ${leadStr}`);
-      }
-      
-      const User = require('../models/User');
-      const leadUser = await User.findById(leadStr);
-      if (!leadUser) {
-        console.log('Lead user not found:', leadStr);
-        res.status(400);
-        throw new Error('Lead user not found');
-      }
-      validatedLead = leadStr;
-    }
-
-    // Validate parent team if provided
-    let validatedParentTeam = null;
-    if (parentTeam && parentTeam !== 'undefined' && parentTeam !== 'null' && parentTeam.toString().trim() !== '') {
-      const mongoose = require('mongoose');
-      const parentTeamStr = parentTeam.toString().trim();
-      
-      console.log('Validating parent team ID:', parentTeamStr);
-      
-      if (!mongoose.Types.ObjectId.isValid(parentTeamStr)) {
-        console.log('Invalid parent team ID format:', parentTeamStr);
-        res.status(400);
-        throw new Error(`Invalid parent team ID format: ${parentTeamStr}`);
-      }
-      
-      const parentTeamDoc = await Team.findById(parentTeamStr);
-      if (!parentTeamDoc) {
-        console.log('Parent team not found:', parentTeamStr);
-        res.status(400);
-        throw new Error('Parent team not found');
-      }
-      validatedParentTeam = parentTeamStr;
-    }
-
     const team = await Team.create({
       name,
       department,
-      lead: validatedLead,
+      lead: lead || null,
       description: description || '',
-      parentTeam: validatedParentTeam,
+      parentTeam: parentTeam || null,
       members: [],
       projects: [],
       completionRate: 0
     });
 
-    if (validatedParentTeam) {
-      await Team.findByIdAndUpdate(validatedParentTeam, {
+    if (parentTeam) {
+      await Team.findByIdAndUpdate(parentTeam, {
         $addToSet: { subTeams: team._id }
       });
     }
@@ -143,7 +108,7 @@ const createTeam = asyncHandler(async (req, res) => {
     res.status(201).json(populatedTeam);
   } catch (error) {
     console.error('Error creating team:', error);
-    res.status(500).json({ message: error.message || 'Server error creating team' });
+    res.status(500).json({ message: 'Server error creating team' });
   }
 });
 
@@ -153,112 +118,50 @@ const createTeam = asyncHandler(async (req, res) => {
 const updateTeam = asyncHandler(async (req, res) => {
   const { name, department, lead, description, parentTeam } = req.body;
 
-  console.log('Updating team with data:', { id: req.params.id, name, department, lead, description, parentTeam });
-
   const team = await Team.findById(req.params.id);
   if (!team) {
     res.status(404);
     throw new Error('Team not found');
   }
 
-  try {
-    // Validate lead ID if provided
-    let validatedLead = team.lead; // Keep existing lead if not provided
-    if (lead !== undefined) {
-      if (lead && lead !== 'undefined' && lead !== 'null' && lead.toString().trim() !== '') {
-        const mongoose = require('mongoose');
-        const leadStr = lead.toString().trim();
-        
-        console.log('Validating lead ID for update:', leadStr);
-        
-        if (!mongoose.Types.ObjectId.isValid(leadStr)) {
-          console.log('Invalid lead ID format for update:', leadStr);
-          res.status(400);
-          throw new Error(`Invalid lead ID format: ${leadStr}`);
-        }
-        
-        const User = require('../models/User');
-        const leadUser = await User.findById(leadStr);
-        if (!leadUser) {
-          console.log('Lead user not found for update:', leadStr);
-          res.status(400);
-          throw new Error('Lead user not found');
-        }
-        validatedLead = leadStr;
-      } else {
-        validatedLead = null; // Remove lead if empty string
-      }
-    }
-
-    // Validate parent team if provided
-    let validatedParentTeam = team.parentTeam; // Keep existing parent if not provided
-    if (parentTeam !== undefined) {
-      if (parentTeam && parentTeam !== 'undefined' && parentTeam !== 'null' && parentTeam.toString().trim() !== '') {
-        const mongoose = require('mongoose');
-        const parentTeamStr = parentTeam.toString().trim();
-        
-        console.log('Validating parent team ID for update:', parentTeamStr);
-        
-        if (!mongoose.Types.ObjectId.isValid(parentTeamStr)) {
-          console.log('Invalid parent team ID format for update:', parentTeamStr);
-          res.status(400);
-          throw new Error(`Invalid parent team ID format: ${parentTeamStr}`);
-        }
-        
-        const parentTeamDoc = await Team.findById(parentTeamStr);
-        if (!parentTeamDoc) {
-          console.log('Parent team not found for update:', parentTeamStr);
-          res.status(400);
-          throw new Error('Parent team not found');
-        }
-        validatedParentTeam = parentTeamStr;
-      } else {
-        validatedParentTeam = null; // Remove parent if empty string
-      }
-    }
-
-    // Handle parent team change
-    if (validatedParentTeam && (!team.parentTeam || validatedParentTeam.toString() !== team.parentTeam.toString())) {
-      // Remove from old parent's subTeams
-      if (team.parentTeam) {
-        await Team.findByIdAndUpdate(team.parentTeam, {
-          $pull: { subTeams: team._id }
-        });
-      }
-
-      // Add to new parent's subTeams
-      await Team.findByIdAndUpdate(validatedParentTeam, {
-        $addToSet: { subTeams: team._id }
-      });
-    } else if (!validatedParentTeam && team.parentTeam) {
-      // Remove from parent's subTeams if parentTeam is being removed
+  // Handle parent team change
+  if (parentTeam && (!team.parentTeam || parentTeam.toString() !== team.parentTeam.toString())) {
+    // Remove from old parent's subTeams
+    if (team.parentTeam) {
       await Team.findByIdAndUpdate(team.parentTeam, {
         $pull: { subTeams: team._id }
       });
     }
 
-    // Update team fields
-    team.name = name || team.name;
-    team.department = department || team.department;
-    team.lead = validatedLead;
-    team.description = description !== undefined ? description : team.description;
-    team.parentTeam = validatedParentTeam;
-
-    const updatedTeam = await team.save();
-
-    // Populate the response
-    const populatedTeam = await Team.findById(updatedTeam._id)
-      .populate('lead', 'name email profileImg')
-      .populate('members', 'name email profileImg')
-      .populate('projects', 'name status progress')
-      .populate('parentTeam', 'name')
-      .populate('subTeams', 'name membersCount projectsCount');
-
-    res.json(populatedTeam);
-  } catch (error) {
-    console.error('Error updating team:', error);
-    res.status(500).json({ message: error.message || 'Server error updating team' });
+    // Add to new parent's subTeams
+    await Team.findByIdAndUpdate(parentTeam, {
+      $addToSet: { subTeams: team._id }
+    });
+  } else if (!parentTeam && team.parentTeam) {
+    // Remove from parent's subTeams if parentTeam is being removed
+    await Team.findByIdAndUpdate(team.parentTeam, {
+      $pull: { subTeams: team._id }
+    });
   }
+
+  // Update team fields
+  team.name = name || team.name;
+  team.department = department || team.department;
+  team.lead = lead || team.lead;
+  team.description = description || team.description;
+  team.parentTeam = parentTeam || team.parentTeam;
+
+  const updatedTeam = await team.save();
+
+  // Populate the response
+  const populatedTeam = await Team.findById(updatedTeam._id)
+    .populate('lead', 'name email profileImg')
+    .populate('members', 'name email profileImg')
+    .populate('projects', 'name status progress')
+    .populate('parentTeam', 'name')
+    .populate('subTeams', 'name membersCount projectsCount');
+
+  res.json(populatedTeam);
 });
 
 // @desc    Delete a team

@@ -1,20 +1,16 @@
-// Test login endpoint
-const loginData = {
-  email: 'admin@genworx.ai',
-  password: '@admin123'
-};
+const axios = require('axios');
 
-fetch('http://localhost:5000/api/users/login', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify(loginData)
-})
-.then(response => response.json())
-.then(data => {
-  console.log('Login response:', data);
-})
-.catch(error => {
-  console.error('Login error:', error);
-});
+async function testLogin() {
+  try {
+    const response = await axios.post('http://localhost:5000/api/users/login', {
+      email: 'admin@genworx.ai',
+      password: '@admin123'
+    });
+    
+    console.log('Login response:', response.data);
+  } catch (error) {
+    console.error('Login failed:', error.response?.data || error.message);
+  }
+}
+
+testLogin();

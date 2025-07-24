@@ -84,6 +84,7 @@ export interface Team {
   name: string;
   department: string;
   lead?: string;
+  leadName?: string; // Added for displaying lead name in UI
   members?: number | User[];
   projects?: number | Project[];
   completionRate: number;
@@ -179,29 +180,12 @@ export interface Notification {
 
 export interface Sprint {
   id: string;
-  _id?: string;
   name: string;
-  description?: string;
-  project: string; // Project ID
-  status: 'upcoming' | 'in-progress' | 'completed';
-  startDate: Date | string;
-  endDate: Date | string;
-  goal?: string;
-  tasks?: {
-    id: string;
-    name: string;
-    assignee: string; // User ID
-    dueDate: Date | string;
-    status: 'todo' | 'in-progress' | 'done';
-    priority: 'low' | 'medium' | 'high';
-    estimatedHours?: number;
-    description?: string;
-  }[];
-  createdBy?: string; // User ID
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
-  // Virtual fields
-  totalTasks?: number;
-  completedTasks?: number;
-  progress?: number;
+  projectId: string;
+  startDate: Date;
+  endDate: Date;
+  status: 'not-started' | 'in-progress' | 'completed';
+  tasks?: Task[];
+  createdAt?: Date;
+  updatedAt?: Date;
 }

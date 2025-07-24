@@ -1,9 +1,9 @@
 import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
+import { Observable, BehaviorSubject, Subject, throwError, of } from 'rxjs';
 import { map, tap, catchError, finalize } from 'rxjs/operators';
-import { AuthResponse, Team, User, UserRole, Project, Sprint } from '../../../model/user.model';
+import { AuthResponse, Team, User, UserRole } from '../../../model/user.model';
 
 @Injectable({
   providedIn: 'root'
@@ -266,10 +266,9 @@ export class Auth {
 
   // Team methods should use '/admin/teams' as the base path
   adminGetAllTeams(): Observable<Team[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/admin/teams`, { 
+    return this.http.get<Team[]>(`${this.apiUrl}/admin/teams`, { 
       headers: this.getAuthHeaders() 
     }).pipe(
-      map(teams => teams.map(team => this.mapApiTeamToTeam(team))),
       catchError(error => {
         console.error('Failed to fetch teams:', error);
         return throwError(() => new Error('Failed to fetch teams'));
@@ -278,22 +277,13 @@ export class Auth {
   }
 
   adminGetTeamById(id: string): Observable<Team> {
-    return this.http.get<any>(`${this.apiUrl}/admin/teams/${id}`, { 
-      headers: this.getAuthHeaders() 
-    }).pipe(
-      map(team => this.mapApiTeamToTeam(team)),
-      catchError(error => {
-        console.error('Failed to fetch team:', error);
-        return throwError(() => new Error('Failed to fetch team'));
-      })
-    );
+    return this.http.get<Team>(`${this.apiUrl}/admin/teams/${id}`, { headers: this.getAuthHeaders() });
   }
 
   adminCreateTeam(teamData: Partial<Team>): Observable<Team> {
-    return this.http.post<any>(`${this.apiUrl}/admin/teams`, teamData, { 
+    return this.http.post<Team>(`${this.apiUrl}/admin/teams`, teamData, { 
       headers: this.getAuthHeaders() 
     }).pipe(
-      map(team => this.mapApiTeamToTeam(team)),
       catchError(error => {
         console.error('Failed to create team:', error);
         return throwError(() => new Error(error.error?.message || 'Failed to create team'));
@@ -326,205 +316,351 @@ export class Auth {
   private mapApiTeamToTeam(apiTeam: any): Team {
     return {
       id: apiTeam._id || apiTeam.id,
-      _id: apiTeam._id,
       name: apiTeam.name,
       department: apiTeam.department,
       lead: apiTeam.lead?._id || apiTeam.lead,
       members: apiTeam.membersCount || (apiTeam.members ? apiTeam.members.length : 0),
       projects: apiTeam.projectsCount || (apiTeam.projects ? apiTeam.projects.length : 0),
       completionRate: apiTeam.completionRate || 0,
-      description: apiTeam.description || '',
+      description: apiTeam.description,
       parentTeam: apiTeam.parentTeam?._id || apiTeam.parentTeam,
       subTeams: apiTeam.subTeams?.map((sub: any) => sub._id || sub) || [],
       leadDetails: apiTeam.lead,
-      memberDetails: apiTeam.members || [],
-      projectDetails: apiTeam.projects || [],
+      memberDetails: apiTeam.members,
+      projectDetails: apiTeam.projects,
       createdAt: apiTeam.createdAt,
-      updatedAt: apiTeam.updatedAt,
-      memberCount: apiTeam.membersCount || (apiTeam.members ? apiTeam.members.length : 0),
-      membersList: apiTeam.members?.map((member: any) => member._id || member) || [],
-      projectCount: apiTeam.projectsCount || (apiTeam.projects ? apiTeam.projects.length : 0),
-      projectList: apiTeam.projects?.map((project: any) => project._id || project) || []
+      updatedAt: apiTeam.updatedAt
     };
   }
 
-  // ===== PROJECT MANAGEMENT METHODS =====
+  // ================== ADMIN PROJECT METHODS ==================
 
   // Get all projects
-  adminGetAllProjects(): Observable<Project[]> {
-    return this.http.get<Project[]>(`${this.apiUrl}/admin/projects`, { headers: this.getAuthHeaders() }).pipe(
-      map(projects => projects.map(project => this.mapApiProjectToProject(project))),
-      catchError(err => {
-        console.error('AdminGetAllProjects failed:', err);
-        return throwError(() => new Error('Failed to fetch projects.'));
+  adminGetAllProjects(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/admin/projects`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch projects:', error);
+        return throwError(() => new Error('Failed to fetch projects'));
       })
     );
   }
 
   // Get project by ID
-  adminGetProjectById(id: string): Observable<Project> {
-    return this.http.get<Project>(`${this.apiUrl}/admin/projects/${id}`, { headers: this.getAuthHeaders() }).pipe(
-      map(project => this.mapApiProjectToProject(project)),
-      catchError(err => {
-        console.error('AdminGetProjectById failed:', err);
-        return throwError(() => new Error('Failed to fetch project.'));
+  adminGetProjectById(id: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/admin/projects/${id}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch project:', error);
+        return throwError(() => new Error('Failed to fetch project'));
       })
     );
   }
 
-  // Create new project
-  adminCreateProject(projectData: Partial<Project>): Observable<Project> {
-    return this.http.post<Project>(`${this.apiUrl}/admin/projects`, projectData, { headers: this.getAuthHeaders() }).pipe(
-      map(project => this.mapApiProjectToProject(project)),
-      catchError(err => {
-        console.error('Failed to create project:', err);
-        const errorMessage = err.error?.message || err.message || 'Unknown error occurred';
-        return throwError(() => new Error(errorMessage));
+  // Create a new project
+  adminCreateProject(projectData: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/admin/projects`, projectData, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to create project:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to create project'));
       })
     );
   }
 
-  // Update project
-  adminUpdateProject(id: string, projectData: Partial<Project>): Observable<Project> {
-    return this.http.put<Project>(`${this.apiUrl}/admin/projects/${id}`, projectData, { headers: this.getAuthHeaders() }).pipe(
-      map(project => this.mapApiProjectToProject(project)),
-      catchError(err => {
-        console.error('Failed to update project:', err);
-        const errorMessage = err.error?.message || err.message || 'Unknown error occurred';
-        return throwError(() => new Error(errorMessage));
+  // Update an existing project
+  adminUpdateProject(id: string, projectData: any): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/admin/projects/${id}`, projectData, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to update project:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to update project'));
       })
     );
   }
 
-  // Delete project
-  adminDeleteProject(id: string): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/admin/projects/${id}`, { headers: this.getAuthHeaders() }).pipe(
-      catchError(err => {
-        console.error('Failed to delete project:', err);
-        const errorMessage = err.error?.message || err.message || 'Unknown error occurred';
-        return throwError(() => new Error(errorMessage));
+  // Delete a project
+  adminDeleteProject(id: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/admin/projects/${id}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to delete project:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to delete project'));
       })
     );
   }
 
-  // Map API project data to frontend Project interface
-  public mapApiProjectToProject(apiProject: any): Project {
-    return {
-      id: apiProject._id || apiProject.id,
-      name: apiProject.name,
-      description: apiProject.description || '',
-      team: apiProject.team?._id || apiProject.team || '',
-      lead: apiProject.lead?._id || apiProject.lead || '',
-      startDate: apiProject.startDate,
-      deadline: apiProject.deadline,
-      status: apiProject.status || 'not-started',
-      progress: apiProject.progress || 0,
-      priority: apiProject.priority || 'medium',
-      teamMembers: apiProject.teamMembers?.map((member: any) => member._id || member) || [],
-      tasks: apiProject.tasks || [],
-      createdAt: apiProject.createdAt,
-      updatedAt: apiProject.updatedAt,
-      endDate: apiProject.endDate
-    };
-  }
-
-  // ===== SPRINT MANAGEMENT METHODS =====
+  // ================== ADMIN SPRINT METHODS ==================
 
   // Get all sprints
-  adminGetAllSprints(): Observable<Sprint[]> {
-    return this.http.get<Sprint[]>(`${this.apiUrl}/admin/sprints`, { headers: this.getAuthHeaders() }).pipe(
-      map(sprints => sprints.map(sprint => this.mapApiSprintToSprint(sprint))),
-      catchError(err => {
-        console.error('AdminGetAllSprints failed:', err);
-        return throwError(() => new Error('Failed to fetch sprints.'));
+  adminGetAllSprints(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/admin/sprints`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch sprints:', error);
+        return throwError(() => new Error('Failed to fetch sprints'));
       })
     );
   }
 
-  // Get sprint by ID
-  adminGetSprintById(id: string): Observable<Sprint> {
-    return this.http.get<Sprint>(`${this.apiUrl}/admin/sprints/${id}`, { headers: this.getAuthHeaders() }).pipe(
-      map(sprint => this.mapApiSprintToSprint(sprint)),
-      catchError(err => {
-        console.error('AdminGetSprintById failed:', err);
-        return throwError(() => new Error('Failed to fetch sprint.'));
+  // Get sprints by project ID
+  adminGetSprintsByProject(projectId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/admin/sprints/project/${projectId}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch sprints for project:', error);
+        return throwError(() => new Error('Failed to fetch sprints for project'));
       })
     );
   }
 
-  // Create new sprint
-  adminCreateSprint(sprintData: Partial<Sprint>): Observable<Sprint> {
-    const payload = { ...sprintData };
-    delete payload.id; // Remove frontend 'id' as backend uses '_id'
-    delete payload._id; // Ensure _id is not sent
-
-    return this.http.post<Sprint>(`${this.apiUrl}/admin/sprints`, payload, { headers: this.getAuthHeaders() }).pipe(
-      map(sprint => this.mapApiSprintToSprint(sprint)),
-      catchError(err => {
-        console.error('AdminCreateSprint failed:', err);
-        const errorMessage = err.error?.message || err.message || 'Unknown error occurred';
-        return throwError(() => new Error(errorMessage));
+  // Create a new sprint
+  adminCreateSprint(sprintData: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/admin/sprints`, sprintData, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to create sprint:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to create sprint'));
       })
     );
   }
 
-  // Update sprint
-  adminUpdateSprint(id: string, sprintData: Partial<Sprint>): Observable<Sprint> {
-    const payload = { ...sprintData };
-    delete payload.id; // Remove frontend 'id' from payload
-    delete payload._id; // Remove _id from payload
-
-    return this.http.put<Sprint>(`${this.apiUrl}/admin/sprints/${id}`, payload, { headers: this.getAuthHeaders() }).pipe(
-      map(sprint => this.mapApiSprintToSprint(sprint)),
-      catchError(err => {
-        console.error('AdminUpdateSprint failed:', err);
-        const errorMessage = err.error?.message || err.message || 'Unknown error occurred';
-        return throwError(() => new Error(errorMessage));
+  // Update an existing sprint
+  adminUpdateSprint(id: string, sprintData: any): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/admin/sprints/${id}`, sprintData, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to update sprint:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to update sprint'));
       })
     );
   }
 
-  // Delete sprint
-  adminDeleteSprint(id: string): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/admin/sprints/${id}`, { headers: this.getAuthHeaders() }).pipe(
-      catchError(err => {
-        console.error('Failed to delete sprint:', err);
-        const errorMessage = err.error?.message || err.message || 'Unknown error occurred';
-        return throwError(() => new Error(errorMessage));
+  // Delete a sprint
+  adminDeleteSprint(id: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/admin/sprints/${id}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to delete sprint:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to delete sprint'));
       })
     );
   }
 
-  // Get sprints by project
-  adminGetSprintsByProject(projectId: string): Observable<Sprint[]> {
-    return this.http.get<Sprint[]>(`${this.apiUrl}/admin/sprints/project/${projectId}`, { headers: this.getAuthHeaders() }).pipe(
-      map(sprints => sprints.map(sprint => this.mapApiSprintToSprint(sprint))),
-      catchError(err => {
-        console.error('AdminGetSprintsByProject failed:', err);
-        return throwError(() => new Error('Failed to fetch sprints for project.'));
+  // ================== REFRESH NOTIFICATIONS ==================
+  
+  private refreshTeamsSubject = new Subject<void>();
+  refreshTeams$ = this.refreshTeamsSubject.asObservable();
+
+  triggerTeamsRefresh(): void {
+    console.log('Auth service: Triggering teams refresh');
+    this.refreshTeamsSubject.next();
+  }
+
+  // ================== TEAM LEAD METHODS ==================
+
+  // Get lead profile information
+  leadGetProfile(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/lead/profile`, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch lead profile:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to fetch lead profile'));
       })
     );
   }
 
-  // Map API sprint data to frontend Sprint interface
-  public mapApiSprintToSprint(apiSprint: any): Sprint {
-    return {
-      id: apiSprint._id || apiSprint.id,
-      _id: apiSprint._id,
-      name: apiSprint.name,
-      description: apiSprint.description || '',
-      project: apiSprint.project?._id || apiSprint.project || '',
-      status: apiSprint.status || 'upcoming',
-      startDate: apiSprint.startDate,
-      endDate: apiSprint.endDate,
-      goal: apiSprint.goal || '',
-      tasks: apiSprint.tasks || [],
-      createdBy: apiSprint.createdBy?._id || apiSprint.createdBy,
-      createdAt: apiSprint.createdAt,
-      updatedAt: apiSprint.updatedAt,
-      totalTasks: apiSprint.totalTasks || apiSprint.tasks?.length || 0,
-      completedTasks: apiSprint.completedTasks || 0,
-      progress: apiSprint.progress || 0
-    };
+  // Update lead profile information
+  leadUpdateProfile(profileData: any): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/lead/profile`, profileData, { headers: this.getAuthHeaders() }).pipe(
+      tap(updatedProfile => {
+        // Update current user in storage if the updated profile is for the current user
+        const currentUser = this.getCurrentUser();
+        if (currentUser && currentUser.id === updatedProfile._id) {
+          this.updateStoredUser(updatedProfile);
+        }
+      }),
+      catchError(error => {
+        console.error('Failed to update lead profile:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to update lead profile'));
+      })
+    );
+  }
+
+  // Get projects assigned to the team lead
+  leadGetProjects(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/lead/projects`, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch lead projects:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to fetch lead projects'));
+      })
+    );
+  }
+
+  // Get team information and members for the lead
+  leadGetTeam(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/lead/team`, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch lead team:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to fetch lead team'));
+      })
+    );
+  }
+
+  // Get dashboard statistics for the lead
+  leadGetDashboardStats(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/lead/dashboard`, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch lead dashboard stats:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to fetch lead dashboard stats'));
+      })
+    );
+  }
+
+  // ================== TEAM MEMBER MANAGEMENT ==================
+
+  // Get available users that can be added to team (filtered by role)
+  leadGetAvailableUsers(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/lead/team/available-users`, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch available users:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to fetch available users'));
+      })
+    );
+  }
+
+  // Add members to team lead's team
+  leadAddTeamMembers(userIds: string[]): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/lead/team/members`, { userIds }, { headers: this.getAuthHeaders() }).pipe(
+      tap(response => {
+        // Trigger refresh for teams data
+        this.triggerTeamsRefresh();
+      }),
+      catchError(error => {
+        console.error('Failed to add team members:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to add team members'));
+      })
+    );
+  }
+
+  // Remove members from team lead's team
+  leadRemoveTeamMembers(userIds: string[]): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/lead/team/members`, { 
+      body: { userIds },
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      tap(response => {
+        // Trigger refresh for teams data
+        this.triggerTeamsRefresh();
+      }),
+      catchError(error => {
+        console.error('Failed to remove team members:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to remove team members'));
+      })
+    );
+  }
+
+  // ================== TASK MANAGEMENT ==================
+
+  // Create a new task
+  leadCreateTask(taskData: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/lead/tasks`, taskData, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to create task:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to create task'));
+      })
+    );
+  }
+
+  // Get all tasks for lead's projects
+  leadGetTasks(filters?: { projectId?: string; sprintId?: string; status?: string; assignee?: string }): Observable<any[]> {
+    let url = `${this.apiUrl}/lead/tasks`;
+    if (filters) {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+    }
+
+    return this.http.get<any[]>(url, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch lead tasks:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to fetch lead tasks'));
+      })
+    );
+  }
+
+  // Update an existing task
+  leadUpdateTask(taskId: string, taskData: any): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/lead/tasks/${taskId}`, taskData, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to update task:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to update task'));
+      })
+    );
+  }
+
+  // Delete a task
+  leadDeleteTask(taskId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/lead/tasks/${taskId}`, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to delete task:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to delete task'));
+      })
+    );
+  }
+
+  // ================== SPRINT MANAGEMENT ==================
+
+  // Get sprints for lead's projects
+  leadGetSprints(filters?: { projectId?: string; status?: string }): Observable<any[]> {
+    let url = `${this.apiUrl}/lead/sprints`;
+    if (filters) {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+    }
+
+    return this.http.get<any[]>(url, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch lead sprints:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to fetch lead sprints'));
+      })
+    );
+  }
+
+  // Update sprint (limited fields for team lead)
+  leadUpdateSprint(sprintId: string, sprintData: any): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/lead/sprints/${sprintId}`, sprintData, { headers: this.getAuthHeaders() }).pipe(
+      catchError(error => {
+        console.error('Failed to update sprint:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to update sprint'));
+      })
+    );
+  }
+
+  // Helper method to update stored user data
+  private updateStoredUser(updatedUser: any): void {
+    if (!this.isBrowser()) return;
+    
+    const storage = localStorage.getItem('currentUser') ? localStorage : sessionStorage;
+    storage.setItem('currentUser', JSON.stringify(updatedUser));
+    this.currentUserSubject.next(updatedUser);
   }
 }

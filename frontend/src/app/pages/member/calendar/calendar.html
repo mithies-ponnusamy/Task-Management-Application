@@ -1,5 +1,4 @@
 <div class="min-h-full">
-  <!-- Header Section -->
   <div class="mb-8 flex justify-between items-center">
     <div>
       <h1 class="text-3xl font-bold text-gray-800">Calendar</h1>
@@ -7,18 +6,17 @@
     </div>
   </div>
 
-  <!-- Calendar View -->
   <div class="bg-white rounded-xl shadow-lg mb-8">
     <div class="p-6 border-b border-gray-200 flex justify-between items-center">
       <div class="flex items-center space-x-4">
-        <button (click)="previousMonth()" class="p-2 rounded-lg hover:bg-gray-100">
+        <button (click)="previousMonth()" class="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors">
           <i class="fas fa-chevron-left"></i>
         </button>
         <h2 class="text-xl font-semibold">{{ currentMonth | date:'MMMM y' }}</h2>
-        <button (click)="nextMonth()" class="p-2 rounded-lg hover:bg-gray-100">
+        <button (click)="nextMonth()" class="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors">
           <i class="fas fa-chevron-right"></i>
         </button>
-        <button (click)="goToToday()" class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg">
+        <button (click)="goToToday()" class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition-colors">
           Today
         </button>
       </div>
@@ -27,41 +25,38 @@
                 [class.bg-indigo-600]="view === 'month'"
                 [class.text-white]="view === 'month'"
                 [class.text-gray-700]="view !== 'month'"
-                class="px-3 py-1 rounded-lg text-sm border transition-colors">
+                class="px-3 py-1 rounded-lg text-sm border border-gray-300 transition-colors hover:bg-indigo-500 hover:text-white">
           Month
         </button>
         <button (click)="changeView('week')" 
                 [class.bg-indigo-600]="view === 'week'"
                 [class.text-white]="view === 'week'"
                 [class.text-gray-700]="view !== 'week'"
-                class="px-3 py-1 rounded-lg text-sm border transition-colors">
+                class="px-3 py-1 rounded-lg text-sm border border-gray-300 transition-colors hover:bg-indigo-500 hover:text-white">
           Week
         </button>
         <button (click)="changeView('day')" 
                 [class.bg-indigo-600]="view === 'day'"
                 [class.text-white]="view === 'day'"
                 [class.text-gray-700]="view !== 'day'"
-                class="px-3 py-1 rounded-lg text-sm border transition-colors">
+                class="px-3 py-1 rounded-lg text-sm border border-gray-300 transition-colors hover:bg-indigo-500 hover:text-white">
           Day
         </button>
       </div>
     </div>
 
-    <!-- Month View -->
     <div *ngIf="view === 'month'" class="p-6">
-      <!-- Weekday Headers -->
       <div class="grid grid-cols-7 gap-1 mb-2">
         <div *ngFor="let day of weekdays" class="text-center font-medium text-gray-500 text-sm py-2">
           {{ day }}
         </div>
       </div>
 
-      <!-- Calendar Grid -->
       <div class="grid grid-cols-7 gap-1">
         <div *ngFor="let day of calendarDays" 
              [class.bg-gray-50]="!day.isCurrentMonth"
-             [class.border-indigo-200]="day.isToday"
-             class="min-h-24 border rounded-lg p-2">
+             [class.border-indigo-400]="day.isToday"
+             class="min-h-24 border border-gray-200 rounded-lg p-2 relative">
           <div class="flex justify-between items-center mb-1">
             <span [class.text-indigo-600]="day.isToday" 
                   [class.font-bold]="day.isToday"
@@ -69,16 +64,15 @@
                   class="text-sm">
               {{ day.date | date:'d' }}
             </span>
-            <button *ngIf="day.isCurrentMonth" class="text-gray-400 hover:text-indigo-600 text-xs">
+            <button *ngIf="day.isCurrentMonth" class="text-gray-400 hover:text-indigo-600 text-xs p-1 rounded-full hover:bg-gray-100">
               <i class="fas fa-plus"></i>
             </button>
           </div>
           
-          <!-- Events/Tasks for the day -->
-          <div class="space-y-1 overflow-y-auto max-h-20">
+          <div class="space-y-1 overflow-y-auto max-h-20 custom-scrollbar">
             <div *ngFor="let task of getTasksForDay(day.date)" 
                  (click)="openTaskDetails(task)"
-                 class="text-xs p-1 rounded truncate cursor-pointer"
+                 class="text-xs p-1 rounded truncate cursor-pointer shadow-sm"
                  [ngClass]="{
                    'bg-blue-100 text-blue-800': task.status === 'in-progress',
                    'bg-green-100 text-green-800': task.status === 'done',
@@ -92,13 +86,10 @@
       </div>
     </div>
 
-    <!-- Week View -->
     <div *ngIf="view === 'week'" class="p-6">
       <div class="grid grid-cols-8 gap-1">
-        <!-- Time Column -->
         <div class="row-span-24"></div>
         
-        <!-- Day Columns -->
         <div *ngFor="let day of currentWeekDays" class="text-center border-b pb-2">
           <div class="font-medium">{{ day | date:'EEE' }}</div>
           <div [class.text-indigo-600]="isToday(day)" 
@@ -108,14 +99,12 @@
           </div>
         </div>
         
-        <!-- Time Slots -->
-        <div *ngFor="let hour of hours" class="grid grid-cols-8 col-span-8 border-t">
+        <div *ngFor="let hour of hours" class="grid grid-cols-8 col-span-8 border-t border-gray-200">
           <div class="text-xs text-gray-500 pr-2 -mt-2">{{ hour }}:00</div>
-          <div *ngFor="let day of currentWeekDays" class="col-span-1 border-r h-12 relative">
-            <!-- Events/Tasks for this time slot -->
+          <div *ngFor="let day of currentWeekDays" class="col-span-1 border-r border-gray-200 h-12 relative">
             <div *ngFor="let task of getTasksForTimeSlot(day, hour)"
                  (click)="openTaskDetails(task)"
-                 class="absolute left-0 right-0 mx-1 p-1 rounded text-xs truncate cursor-pointer"
+                 class="absolute left-0 right-0 mx-1 p-1 rounded text-xs truncate cursor-pointer shadow-sm"
                  [ngClass]="{
                    'bg-blue-100 text-blue-800': task.status === 'in-progress',
                    'bg-green-100 text-green-800': task.status === 'done',
@@ -130,25 +119,21 @@
       </div>
     </div>
 
-    <!-- Day View -->
     <div *ngIf="view === 'day'" class="p-6">
       <div class="text-center mb-4 font-medium text-lg">
         {{ selectedDay | date:'EEEE, MMMM d, y' }}
       </div>
       
       <div class="grid grid-cols-12 gap-1">
-        <!-- Time Column -->
         <div class="col-span-1">
-          <div *ngFor="let hour of hours" class="h-16 border-t text-xs text-gray-500 pr-2 pt-1">
+          <div *ngFor="let hour of hours" class="h-16 border-t border-gray-200 text-xs text-gray-500 pr-2 pt-1">
             {{ hour }}:00
           </div>
         </div>
         
-        <!-- Events Column -->
         <div class="col-span-11 relative">
-          <div *ngFor="let hour of hours" class="h-16 border-t"></div>
+          <div *ngFor="let hour of hours" class="h-16 border-t border-gray-200"></div>
           
-          <!-- Events/Tasks for the day -->
           <div *ngFor="let task of getTasksForDay(selectedDay)"
                (click)="openTaskDetails(task)"
                class="absolute left-0 right-0 mx-2 p-2 rounded border-l-4 shadow-sm cursor-pointer"
@@ -169,7 +154,6 @@
     </div>
   </div>
 
-  <!-- Upcoming Deadlines -->
   <div class="bg-white rounded-xl shadow-lg">
     <div class="p-6 border-b border-gray-200">
       <h2 class="text-xl font-semibold">Upcoming Deadlines</h2>
@@ -217,7 +201,6 @@
     </div>
   </div>
 
-  <!-- Task Details Modal -->
   <div *ngIf="showTaskModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
       <div class="p-6">

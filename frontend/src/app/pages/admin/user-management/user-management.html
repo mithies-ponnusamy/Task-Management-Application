@@ -138,7 +138,7 @@
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{user.name}}</td>
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{user.email}}</td>
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500 capitalize">{{user.role.replace('-', ' ')}}</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{user.team || 'None'}}</td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{getTeamNameById(user.team)}}</td>
                         <td class="px-6 py-3 whitespace-nowrap">
                             <span class="px-2 py-1 rounded-full text-xs" [ngClass]="getStatusClass(user.status)">
                                 {{user.status}}
@@ -273,7 +273,7 @@
                 </div>
                 <div *ngIf="team.lead" class="mt-2 flex items-center">
                     <span class="text-xs text-gray-500 mr-1">Team Lead:</span>
-                    <span class="text-xs font-medium">{{getUserById(team.lead)?.name || team.lead}}</span>
+                    <span class="text-xs font-medium">{{team.leadName || 'Unknown'}}</span>
                 </div>
                 <div class="mt-2">
                     <div class="flex justify-between text-xs mb-1">
@@ -335,7 +335,7 @@
                             </div>
                             <div *ngIf="subTeam.lead" class="mt-2 flex items-center">
                                 <span class="text-xs text-gray-500 mr-1">Sub-Team Lead:</span>
-                                <span class="text-xs font-medium">{{getUserById(subTeam.lead)?.name || subTeam.lead}}</span>
+                                <span class="text-xs font-medium">{{subTeam.leadName || 'Unknown'}}</span>
                             </div>
                             <div class="mt-4 flex justify-end">
                                 <button 
@@ -442,7 +442,7 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500">Team</label>
-                            <p class="text-sm mt-1">{{selectedUser.team || 'None'}}</p>
+                            <p class="text-sm mt-1">{{getTeamNameById(selectedUser.team)}}</p>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500">Employee Type</label>
@@ -857,7 +857,7 @@
                         <select id="teamLead" [(ngModel)]="newTeam.lead" name="lead" 
                                 class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                             <option value="">Select Team Lead</option>
-                            <option *ngFor="let user of users" [value]="user._id">{{user.name}}</option>
+                            <option *ngFor="let user of users" [value]="user._id || user.id">{{user.name}}</option>
                         </select>
                     </div>
                     <div>
@@ -916,7 +916,7 @@
                         <select id="subTeamLead" [(ngModel)]="newSubTeam.lead" name="lead" 
                                 class="block w-full px-3 py-1 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                             <option value="">Select Sub-Team Lead</option>
-                            <option *ngFor="let user of users" [value]="user._id">{{user.name}}</option>
+                            <option *ngFor="let user of users" [value]="user._id || user.id">{{user.name}}</option>
                         </select>
                     </div>
                     <div>
@@ -999,7 +999,7 @@
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr *ngFor="let member of getTeamMembers(selectedTeamForFilter.name)" class="hover:bg-gray-50">
+                                    <tr *ngFor="let member of getTeamMembers(selectedTeamForFilter.id)" class="hover:bg-gray-50">
                                         <td class="px-4 py-2 whitespace-nowrap">
                                             <div class="flex items-center">
                                                 <div class="flex-shrink-0 h-8 w-8">
@@ -1033,7 +1033,7 @@
                     <div>
                         <h4 class="text-sm font-medium text-gray-700 mb-2">Active Projects</h4>
                         <div class="space-y-2">
-                            <div *ngFor="let project of getTeamProjects(selectedTeamForFilter.name)" class="bg-white border border-gray-200 rounded-lg p-3">
+                            <div *ngFor="let project of getTeamProjects(selectedTeamForFilter.id)" class="bg-white border border-gray-200 rounded-lg p-3">
                                 <div class="flex justify-between items-start">
                                     <div>
                                         <h4 class="text-sm font-medium text-gray-800">{{project.name}}</h4>
@@ -1092,7 +1092,7 @@
                                 </div>
                                 <ng-template #leadNotFound>
                                     <div class="text-sm text-gray-600">
-                                        <fa-icon [icon]="faInfoCircle" class="mr-1"></fa-icon> {{selectedTeamForFilter.lead}} (user details not found)
+                                        <fa-icon [icon]="faInfoCircle" class="mr-1"></fa-icon> Team lead details not found (ID: {{selectedTeamForFilter.lead}})
                                     </div>
                                 </ng-template>
                             </div>
@@ -1194,7 +1194,7 @@
                         <select id="editTeamLead" [(ngModel)]="selectedTeamForFilter.lead" name="lead"
                                 class="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                             <option value="">Select Team Lead</option>
-                            <option *ngFor="let user of users" [value]="user._id">{{user.name}}</option>
+                            <option *ngFor="let user of users" [value]="user._id || user.id">{{user.name}}</option>
                         </select>
                     </div>
                     <div>

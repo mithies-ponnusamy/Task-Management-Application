@@ -1,5 +1,4 @@
 <div class="min-h-full">
-  <!-- Header Section -->
   <div class="mb-8 flex justify-between items-center">
     <div>
       <h1 class="text-3xl font-bold text-gray-800">My Dashboard</h1>
@@ -7,7 +6,6 @@
     </div>
   </div>
 
-  <!-- Stats Cards -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <div class="bg-white rounded-xl shadow p-6 border-l-4 border-indigo-500">
       <div class="flex items-center justify-between">
@@ -78,7 +76,6 @@
     </div>
   </div>
 
-  <!-- Task Boards Section -->
   <div class="bg-white rounded-xl shadow-lg mb-8">
     <div class="p-6 border-b border-gray-200 flex justify-between items-center">
       <h2 class="text-xl font-semibold">Task Boards</h2>
@@ -91,7 +88,6 @@
     
     <div class="p-6">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- To Do Column -->
         <div cdkDropList id="todoList" [cdkDropListData]="getTasksForBoard('website', 'todo')" (cdkDropListDropped)="drop($event)"
              class="bg-gray-50 rounded-lg p-4">
           <div class="flex justify-between items-center mb-4">
@@ -122,7 +118,6 @@
           </div>
         </div>
         
-        <!-- In Progress Column -->
         <div cdkDropList id="inProgressList" [cdkDropListData]="getTasksForBoard('website', 'in-progress')" (cdkDropListDropped)="drop($event)"
              class="bg-blue-50 rounded-lg p-4">
           <div class="flex justify-between items-center mb-4">
@@ -151,7 +146,6 @@
           </div>
         </div>
         
-        <!-- Review Column -->
         <div cdkDropList id="reviewList" [cdkDropListData]="getTasksForBoard('website', 'review')" (cdkDropListDropped)="drop($event)"
              class="bg-yellow-50 rounded-lg p-4">
           <div class="flex justify-between items-center mb-4">
@@ -180,7 +174,6 @@
           </div>
         </div>
         
-        <!-- Done Column -->
         <div cdkDropList id="doneList" [cdkDropListData]="getTasksForBoard('website', 'done')" (cdkDropListDropped)="drop($event)"
              class="bg-green-50 rounded-lg p-4">
           <div class="flex justify-between items-center mb-4">
@@ -212,7 +205,6 @@
     </div>
   </div>
 
-  <!-- Recent Tasks Section -->
   <div class="bg-white rounded-xl shadow-lg mb-8">
     <div class="p-6 border-b border-gray-200 flex justify-between items-center">
       <h2 class="text-xl font-semibold">Recent Tasks</h2>
@@ -262,7 +254,6 @@
       </table>
     </div>
 
-    <!-- Pagination -->
     <div class="flex items-center justify-between px-6 py-4 border-t border-gray-200" *ngIf="((allTasks$ | async)?.length || 0) > pageSize">
       <div class="text-sm text-gray-500">
         Showing <span class="font-medium">{{ (currentPage - 1) * pageSize + 1 }}</span> to 
@@ -272,21 +263,26 @@
       <div class="flex space-x-2">
         <button (click)="previousPage()" [disabled]="currentPage === 1" 
                 class="px-3 py-1 border rounded text-sm font-medium"
-                [class.bg-indigo-600 text-white]="currentPage !== 1"
-                [class.bg-gray-200 text-gray-500 cursor-not-allowed]="currentPage === 1">
+                [class.bg-indigo-600]="currentPage !== 1"
+                [class.text-white]="currentPage !== 1"
+                [class.bg-gray-200]="currentPage === 1"
+                [class.text-gray-500]="currentPage === 1"
+                [class.cursor-not-allowed]="currentPage === 1">
           Previous
         </button>
         <button (click)="nextPage()" [disabled]="currentPage * pageSize >= ((allTasks$ | async)?.length || 0)"
                 class="px-3 py-1 border rounded text-sm font-medium"
-                [class.bg-indigo-600 text-white]="currentPage * pageSize < ((allTasks$ | async)?.length || 0)"
-                [class.bg-gray-200 text-gray-500 cursor-not-allowed]="currentPage * pageSize >= ((allTasks$ | async)?.length || 0)">
+                [class.bg-indigo-600]="currentPage * pageSize < ((allTasks$ | async)?.length || 0)"
+                [class.text-white]="currentPage * pageSize < ((allTasks$ | async)?.length || 0)"
+                [class.bg-gray-200]="currentPage * pageSize >= ((allTasks$ | async)?.length || 0)"
+                [class.text-gray-500]="currentPage * pageSize >= ((allTasks$ | async)?.length || 0)"
+                [class.cursor-not-allowed]="currentPage * pageSize >= ((allTasks$ | async)?.length || 0)">
           Next
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Recent Activity Section -->
   <div class="bg-white rounded-xl shadow-lg">
     <div class="p-6 border-b border-gray-200">
       <h2 class="text-xl font-semibold">Recent Activity</h2>
@@ -320,7 +316,6 @@
     </div>
   </div>
 
-  <!-- Task Details Modal -->
   <div *ngIf="showTaskModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
       <div class="p-6">

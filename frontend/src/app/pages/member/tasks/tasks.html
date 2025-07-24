@@ -1,5 +1,4 @@
 <div class="min-h-full">
-  <!-- Header Section -->
   <div class="mb-8 flex justify-between items-center">
     <div>
       <h1 class="text-3xl font-bold text-gray-800">Tasks</h1>
@@ -7,12 +6,12 @@
     </div>
   </div>
 
-  <!-- Task Filters -->
   <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div>
         <label class="block text-gray-700 mb-2">Status</label>
-        <select [(ngModel)]="filters.status" class="w-full p-2 border border-gray-300 rounded-lg">
+        <select [(ngModel)]="filters.status" 
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
           <option value="">All Statuses</option>
           <option value="todo">To Do</option>
           <option value="in-progress">In Progress</option>
@@ -22,7 +21,8 @@
       </div>
       <div>
         <label class="block text-gray-700 mb-2">Priority</label>
-        <select [(ngModel)]="filters.priority" class="w-full p-2 border border-gray-300 rounded-lg">
+        <select [(ngModel)]="filters.priority" 
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
           <option value="">All Priorities</option>
           <option value="high">High</option>
           <option value="medium">Medium</option>
@@ -31,7 +31,8 @@
       </div>
       <div>
         <label class="block text-gray-700 mb-2">Project</label>
-        <select [(ngModel)]="filters.project" class="w-full p-2 border border-gray-300 rounded-lg">
+        <select [(ngModel)]="filters.project" 
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
           <option value="">All Projects</option>
           <option *ngFor="let project of assignedProjects" [value]="project.id">{{ project.name }}</option>
         </select>
@@ -44,18 +45,16 @@
     </div>
   </div>
 
-  <!-- Task List -->
   <div class="bg-white rounded-xl shadow-lg">
     <div class="p-6 border-b border-gray-200 flex justify-between items-center">
       <h2 class="text-xl font-semibold">Your Tasks</h2>
       <div class="flex items-center space-x-3">
-        <button (click)="toggleViewMode()" class="p-2 rounded-lg hover:bg-gray-100">
+        <button (click)="toggleViewMode()" class="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600">
           <i class="fas" [class.fa-list]="viewMode === 'list'" [class.fa-table]="viewMode === 'table'"></i>
         </button>
       </div>
     </div>
     
-    <!-- List View -->
     <div *ngIf="viewMode === 'list'" class="p-6">
       <div class="space-y-4">
         <div *ngFor="let task of filteredTasks" 
@@ -97,17 +96,17 @@
           <div class="mt-4 flex justify-end space-x-2">
             <button (click)="updateTaskProgress(task, -10)" 
                     [disabled]="getTaskProgress(task) <= 0"
-                    class="px-3 py-1 border rounded text-sm"
+                    class="px-3 py-1 border rounded text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                     [class.opacity-50]="getTaskProgress(task) <= 0">
               <i class="fas fa-minus"></i>
             </button>
             <button (click)="updateTaskProgress(task, 10)" 
                     [disabled]="getTaskProgress(task) >= 100"
-                    class="px-3 py-1 border rounded text-sm"
+                    class="px-3 py-1 border rounded text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                     [class.opacity-50]="getTaskProgress(task) >= 100">
               <i class="fas fa-plus"></i>
             </button>
-            <button (click)="openTaskDetails(task)" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">
+            <button (click)="openTaskDetails(task)" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 transition-colors">
               <i class="fas fa-eye mr-1"></i> View
             </button>
           </div>
@@ -120,7 +119,6 @@
       </div>
     </div>
     
-    <!-- Table View -->
     <div *ngIf="viewMode === 'table'" class="p-6 overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
@@ -165,17 +163,17 @@
               <div class="flex space-x-2">
                 <button (click)="updateTaskProgress(task, -10)" 
                         [disabled]="getTaskProgress(task) <= 0"
-                        class="p-1 text-gray-600 hover:text-indigo-600"
+                        class="p-1 text-gray-600 hover:text-indigo-600 transition-colors"
                         [class.opacity-50]="getTaskProgress(task) <= 0">
                   <i class="fas fa-minus"></i>
                 </button>
                 <button (click)="updateTaskProgress(task, 10)" 
                         [disabled]="getTaskProgress(task) >= 100"
-                        class="p-1 text-gray-600 hover:text-indigo-600"
+                        class="p-1 text-gray-600 hover:text-indigo-600 transition-colors"
                         [class.opacity-50]="getTaskProgress(task) >= 100">
                   <i class="fas fa-plus"></i>
                 </button>
-                <button (click)="openTaskDetails(task)" class="p-1 text-gray-600 hover:text-indigo-600">
+                <button (click)="openTaskDetails(task)" class="p-1 text-gray-600 hover:text-indigo-600 transition-colors">
                   <i class="fas fa-eye"></i>
                 </button>
               </div>
@@ -191,7 +189,6 @@
     </div>
   </div>
 
-  <!-- Task Details Modal -->
   <div *ngIf="showTaskModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
       <div class="p-6">
@@ -247,13 +244,13 @@
               <div class="flex justify-between">
                 <button (click)="updateTaskProgress(selectedTask, -10)" 
                         [disabled]="getTaskProgress(selectedTask) <= 0"
-                        class="px-3 py-1 border rounded text-sm"
+                        class="px-3 py-1 border rounded text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                         [class.opacity-50]="getTaskProgress(selectedTask) <= 0">
                   <i class="fas fa-minus mr-1"></i> Decrease
                 </button>
                 <button (click)="updateTaskProgress(selectedTask, 10)" 
                         [disabled]="getTaskProgress(selectedTask) >= 100"
-                        class="px-3 py-1 border rounded text-sm"
+                        class="px-3 py-1 border rounded text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                         [class.opacity-50]="getTaskProgress(selectedTask) >= 100">
                   <i class="fas fa-plus mr-1"></i> Increase
                 </button>

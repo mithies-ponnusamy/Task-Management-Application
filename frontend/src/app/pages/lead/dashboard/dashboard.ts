@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Task, Project } from '../../../model/user.model';
 import { Chart, registerables } from 'chart.js';
 import { TaskService } from '../../../core/services/task/task';
-import { ProjectService } from '../../../core/services/project/project';
+import { Auth } from '../../../core/services/auth/auth';
 import { UserService } from '../../../core/services/user/user';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -44,7 +44,12 @@ export class Dashboard implements OnInit, OnDestroy {
     { id: 'review', title: 'Review', tasks: [] },
     { id: 'done', title: 'Done', tasks: [] }
   ];
-  filteredColumns: { id: string; title: string; tasks: Task[] }[] = [];
+  filteredColumns: { id: string; title: string; tasks: Task[] }[] = [
+    { id: 'todo', title: 'To Do', tasks: [] },
+    { id: 'in-progress', title: 'In Progress', tasks: [] },
+    { id: 'review', title: 'Review', tasks: [] },
+    { id: 'done', title: 'Done', tasks: [] }
+  ];
   
   // Filters
   searchQuery: string = '';
@@ -54,7 +59,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
   constructor(
     private taskService: TaskService,
-    private projectService: ProjectService,
+    private authService: Auth,
     private userService: UserService,
     private route: ActivatedRoute,
     private router: Router,
@@ -66,27 +71,7 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    const currentUser = this.userService.getCurrentUser();
-    if (currentUser && currentUser.team) {
-      this.projects = this.projectService.getProjectsByTeam(currentUser.team);
-      this.teamMembers = this.userService.getTeamMembers(currentUser.team);
-    }
-    
-    this.route.queryParams.subscribe(params => {
-      const projectId = params['projectId'];
-      if (projectId && this.projects.some(p => p.id === projectId)) {
-        this.selectedProject = projectId;
-      } else if (this.projects.length > 0) {
-        this.selectedProject = this.projects[0].id;
-        // Update URL to reflect default selection
-        this.router.navigate([], {
-          relativeTo: this.route,
-          queryParams: { projectId: this.selectedProject },
-          queryParamsHandling: 'merge',
-        });
-      }
-      this.loadAllData();
-    });
+    this.loadProjects();
 
     // Subscribe to task updates
     this.taskSubscription = this.taskService.tasksUpdated$.subscribe(() => {
@@ -101,6 +86,74 @@ export class Dashboard implements OnInit, OnDestroy {
     if (this.performanceChart) {
       this.performanceChart.destroy();
     }
+  }
+
+  loadProjects(): void {
+    this.authService.leadGetProjects().subscribe({
+      next: (projects) => {
+        this.projects = projects.map((project: any) => ({
+          id: project._id || project.id,
+          name: project.name,
+          description: project.description,
+          startDate: project.startDate,
+          deadline: project.deadline,
+          team: project.team,
+          manager: project.manager,
+          lead: project.lead || project.manager, // Add lead field
+          status: project.status,
+          priority: project.priority,
+          progress: project.progress || 0,
+          budget: project.budget,
+          client: project.client,
+          technologies: project.technologies,
+          tasks: project.tasks || [],
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt
+        }));
+        
+        // Load team members after projects are loaded
+        this.loadTeamMembers();
+        
+        // Update project selection after projects are loaded
+        this.updateProjectSelection();
+        
+        // Load all data
+        this.loadAllData();
+      },
+      error: (error) => {
+        console.error('Error loading projects:', error);
+        this.toastService.show('Failed to load projects', 'error');
+      }
+    });
+  }
+
+  loadTeamMembers(): void {
+    this.authService.leadGetTeam().subscribe({
+      next: (teamData) => {
+        this.teamMembers = teamData?.members || [];
+      },
+      error: (error) => {
+        console.error('Error loading team members:', error);
+      }
+    });
+  }
+
+  updateProjectSelection(): void {
+    this.route.queryParams.subscribe(params => {
+      const projectId = params['projectId'];
+      if (projectId && this.projects.some(p => p.id === projectId)) {
+        this.selectedProject = projectId;
+      } else if (this.projects.length > 0) {
+        this.selectedProject = this.projects[0].id;
+        // Update URL to reflect default selection
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { projectId: this.selectedProject },
+          queryParamsHandling: 'merge',
+          replaceUrl: true
+        });
+      }
+    });
   }
   
   loadAllData(): void {
@@ -124,8 +177,10 @@ export class Dashboard implements OnInit, OnDestroy {
   
   loadBoardTasks(): void {
     this.boardColumns.forEach(col => col.tasks = []);
+    this.filteredColumns.forEach(col => col.tasks = []);
+    
     if (!this.selectedProject) {
-        this.filteredColumns = [...this.boardColumns];
+        this.filterTasks();
         return;
     };
 
@@ -141,16 +196,17 @@ export class Dashboard implements OnInit, OnDestroy {
 
   filterTasks(): void {
     const searchTerm = this.searchQuery.toLowerCase();
-    this.filteredColumns = this.boardColumns.map(column => ({
-      ...column,
-      tasks: column.tasks.filter(task => {
+    
+    for (let i = 0; i < this.boardColumns.length; i++) {
+      const column = this.boardColumns[i];
+      this.filteredColumns[i].tasks = column.tasks.filter(task => {
         const matchesMember = !this.selectedBoardMember || task.assignee === this.selectedBoardMember;
         const matchesSearch = !searchTerm || 
           task.title.toLowerCase().includes(searchTerm) ||
           (task.description && task.description.toLowerCase().includes(searchTerm));
         return matchesMember && matchesSearch;
-      })
-    }));
+      });
+    }
   }
 
   onProjectChange(): void {

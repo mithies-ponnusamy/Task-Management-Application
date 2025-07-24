@@ -54,7 +54,7 @@ export class ManageSprints implements OnInit {
         name: '',
         startDate: new Date(),
         endDate: new Date(),
-        project: this.projects.length > 0 ? this.projects[0].id : '',
+        projectId: this.projects.length > 0 ? this.projects[0].id : '',
     };
   }
 
@@ -66,8 +66,8 @@ export class ManageSprints implements OnInit {
       name: this.newSprint.name!,
       startDate: this.newSprint.startDate!,
       endDate: this.newSprint.endDate!,
-      project: this.newSprint.project!,
-      status: 'upcoming',
+      projectId: this.newSprint.projectId!,
+      status: 'not-started',
     };
 
     this.allSprints.push(sprintToAdd);

@@ -2,18 +2,17 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule, ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
+import { forkJoin } from 'rxjs';
 import { 
   faSearch, faFilter, faPlus, faTimes, faExclamationCircle, 
-  faExclamationTriangle, faInfo, faFileWord, faInfoCircle, faFilePdf,
+  faExclamationTriangle, faInfoCircle, faFilePdf, faFileWord,
   faTrashAlt, faEdit, faEye, faUsers, faProjectDiagram, faTasks
 } from '@fortawesome/free-solid-svg-icons';
 import { LocalStorageService } from '../../../core/services/local-storage/local-storage';
 import { DialogService } from '../../../core/services/dialog/dialog';
 import { ToastService } from '../../../core/services/toast/toast';
 import { Auth } from '../../../core/services/auth/auth';
-import { Project, User, Team } from '../../../model/user.model';
 
 interface SprintTask {
   id: string;
@@ -77,6 +76,13 @@ export class ProjectManagement implements OnInit {
   teams: any[] = [];
   teamMembers: any[] = [];
 
+  // Tasks for sprint assignment
+  availableTasks: any[] = [];
+  projectTasks: any[] = [];
+
+  // Loading state
+  isLoading: boolean = false;
+
   // Project Filtering
   searchProjectsTerm: string = '';
   statusFilter: string = '';
@@ -90,22 +96,6 @@ export class ProjectManagement implements OnInit {
   sprintProjectFilter: string = '';
   sprintDueDateFilter: string = '';
   filterSprintsDropdown: boolean = false;
-
-  // Enhanced Task Management
-  showTaskInput: boolean = false;
-  currentSprintTasks: any[] = [];
-  newTaskInput: any = {
-    name: '',
-    assignee: '',
-    priority: 'medium',
-    estimatedHours: 0,
-    description: ''
-  };
-  presetTasks: string[] = [
-    'Design Homepage', 'Develop Frontend', 'API Integration', 
-    'Content Migration', 'UI Design', 'Backend Setup',
-    'Database Setup', 'Testing', 'Documentation', 'Code Review'
-  ];
 
   // Pagination
   currentPage: number = 1;
@@ -128,9 +118,9 @@ export class ProjectManagement implements OnInit {
     private localStorage: LocalStorageService,
     private dialogService: DialogService,
     private toastService: ToastService,
-    private authService: Auth,
-    private router: Router
+    private authService: Auth
   ) {
+    console.log('ProjectManagement constructor - authService:', this.authService);
     // Initialize form groups
     this.projectForm = new FormGroup({
       name: new FormControl('', [Validators.required, Validators.minLength(3)]),
@@ -140,7 +130,9 @@ export class ProjectManagement implements OnInit {
       team: new FormControl('', Validators.required),
       manager: new FormControl('', Validators.required),
       priority: new FormControl('medium'),
-      budget: new FormControl(10000, [Validators.required, Validators.min(0)])
+      budget: new FormControl(10000, [Validators.required, Validators.min(0)]),
+      files: new FormControl([]),
+      links: new FormControl('')
     });
 
     this.sprintForm = new FormGroup({
@@ -164,7 +156,9 @@ export class ProjectManagement implements OnInit {
       status: new FormControl('planning'),
       priority: new FormControl('medium'),
       progress: new FormControl(0, [Validators.min(0), Validators.max(100)]),
-      budget: new FormControl(0, [Validators.required, Validators.min(0)])
+      budget: new FormControl(0, [Validators.required, Validators.min(0)]),
+      files: new FormControl([]),
+      links: new FormControl('')
     });
 
     this.editSprintForm = new FormGroup({
@@ -180,114 +174,224 @@ export class ProjectManagement implements OnInit {
   }
 
   ngOnInit(): void {
+    this.isLoading = true;
     this.loadInitialData();
     this.applyProjectsFilters();
     this.applySprintsFilters();
+
+    // Add team change listeners for auto-selecting team lead as manager
+    this.setupTeamChangeListeners();
+  }
+
+  private setupTeamChangeListeners(): void {
+    // Listen for team changes in project form
+    this.projectForm.get('team')?.valueChanges.subscribe(teamId => {
+      if (teamId) {
+        this.autoSelectTeamLead(teamId, this.projectForm);
+      }
+    });
+
+    // Listen for team changes in edit project form
+    this.editProjectForm.get('team')?.valueChanges.subscribe(teamId => {
+      if (teamId) {
+        this.autoSelectTeamLead(teamId, this.editProjectForm);
+      }
+    });
+
+    // Listen for project changes in sprint forms to load available tasks
+    this.sprintForm.get('project')?.valueChanges.subscribe(projectId => {
+      if (projectId) {
+        this.loadProjectTasks(projectId);
+      }
+    });
+
+    this.editSprintForm.get('project')?.valueChanges.subscribe(projectId => {
+      if (projectId) {
+        this.loadProjectTasks(projectId);
+      }
+    });
+  }
+
+  private autoSelectTeamLead(teamId: string, form: FormGroup): void {
+    const selectedTeam = this.teams.find(team => (team._id || team.id) === teamId);
+    if (selectedTeam && selectedTeam.lead) {
+      // Auto-select the team lead as the project manager
+      const leadId = selectedTeam.lead._id || selectedTeam.lead.id || selectedTeam.lead;
+      form.get('manager')?.setValue(leadId);
+    }
+  }
+
+  onTeamChange(event: any, form: FormGroup): void {
+    const teamId = event.target.value;
+    if (teamId) {
+      this.autoSelectTeamLead(teamId, form);
+    } else {
+      // Clear manager selection if no team is selected
+      form.get('manager')?.setValue('');
+    }
+  }
+
+  private loadProjectTasks(projectId: string): void {
+    // In a real application, you would load tasks from backend
+    // For now, using sample tasks based on project
+    const selectedProject = this.projects.find(p => (p.id || p._id) === projectId);
+    
+    if (selectedProject) {
+      // Sample tasks - in production, fetch from backend API
+      this.availableTasks = [
+        { id: '1', name: 'Design Homepage', projectId: projectId },
+        { id: '2', name: 'Develop Frontend', projectId: projectId },
+        { id: '3', name: 'API Integration', projectId: projectId },
+        { id: '4', name: 'Content Migration', projectId: projectId },
+        { id: '5', name: 'UI Design', projectId: projectId },
+        { id: '6', name: 'Backend Setup', projectId: projectId },
+        { id: '7', name: 'Testing & QA', projectId: projectId },
+        { id: '8', name: 'Deployment Setup', projectId: projectId }
+      ];
+    } else {
+      this.availableTasks = [];
+    }
   }
 
   private loadInitialData(): void {
-    // Load users and teams from backend
-    this.loadUsers();
-    this.loadTeams();
-    this.loadProjects();
+    console.log('Loading initial data for project management...');
     
-    // Initialize filtered lists
-    this.filteredProjects = [...this.projects];
-    this.filteredSprints = [...this.sprints];
+    // Load data from backend APIs using forkJoin
+    forkJoin({
+      users: this.authService.adminGetAllUsers(),
+      teams: this.authService.adminGetAllTeams(),
+      projects: this.authService.adminGetAllProjects(),
+      sprints: this.authService.adminGetAllSprints()
+    }).subscribe({
+      next: (data: any) => {
+        console.log('Data loaded successfully:', data);
+        
+        // Process users
+        this.users = data.users.map((user: any) => ({
+          id: user._id || user.id,
+          _id: user._id || user.id, // Ensure both formats are available
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          profileImg: user.profileImg
+        }));
+        
+        // Process teams
+        this.teams = data.teams.map((team: any) => ({
+          id: team._id || team.id,
+          name: team.name,
+          department: team.department,
+          lead: team.lead?._id || team.lead,
+          leadName: team.lead?.name || 'Unknown', // Extract lead name
+          members: Array.isArray(team.members) ? team.members.length : (team.memberCount || 0),
+          projects: Array.isArray(team.projects) ? team.projects.length : (team.projectCount || 0),
+          completionRate: team.completionRate || 0,
+          description: team.description,
+          leadDetails: team.lead, // Keep full lead details
+          memberDetails: team.members, // Keep full member details
+          projectDetails: team.projects // Keep full project details
+        }));
+        
+        // Process projects
+        this.projects = data.projects.map((project: any) => ({
+          id: project._id || project.id,
+          name: project.name,
+          description: project.description,
+          status: project.status,
+          priority: project.priority,
+          startDate: project.startDate,
+          endDate: project.deadline, // Backend uses 'deadline', frontend uses 'endDate'
+          deadline: project.deadline,
+          team: project.team?._id || project.team,
+          teamName: project.team?.name || project.teamDetails?.name || 'Unassigned',
+          lead: project.lead?._id || project.lead,
+          manager: project.lead?._id || project.lead, // Map lead to manager for frontend
+          progress: project.progress || 0,
+          teamMembers: project.teamMembers || [],
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt
+        }));
+        
+        // Process sprints
+        this.sprints = data.sprints.map((sprint: any) => ({
+          id: sprint._id || sprint.id,
+          name: sprint.name,
+          description: sprint.description,
+          status: sprint.status,
+          startDate: sprint.startDate,
+          endDate: sprint.endDate,
+          project: sprint.project?._id || sprint.project,
+          projectName: sprint.project?.name || 'Unassigned',
+          goal: sprint.goal || '', // Backend sends 'goal' (singular)
+          goals: sprint.goal ? [sprint.goal] : [], // Frontend compatibility
+          progress: sprint.progress || 0,
+          tasks: sprint.tasks || [],
+          createdAt: sprint.createdAt,
+          updatedAt: sprint.updatedAt
+        }));
 
-    // Load sprints from backend
-    this.loadSprints();
-  }
-
-  private loadSprints(): void {
-    this.authService.adminGetAllSprints().subscribe({
-      next: (sprints) => {
-        this.sprints = sprints;
+        // Initialize filtered lists
+        this.filteredProjects = [...this.projects];
         this.filteredSprints = [...this.sprints];
-        this.applySprintsFilters();
-      },
-      error: (err) => {
-        console.error('Error loading sprints:', err);
-        if (err.status === 401) {
-          setTimeout(() => {
-            this.toastService.show('Session expired. Please log in again.');
-            this.router.navigate(['/login']);
-          });
-          return;
-        }
-        this.toastService.show(`Failed to load sprints: ${err.message}`, 'error');
-        // Fallback to sample data if API fails
-        this.sprints = this.getSampleSprints();
-        this.filteredSprints = [...this.sprints];
-      }
-    });
-  }
-
-  private loadUsers(): void {
-    this.authService.adminGetAllUsers().subscribe({
-      next: (users) => {
-        this.users = users;
-      },
-      error: (err) => {
-        console.error('Error loading users:', err);
-        if (err.status === 401) {
-          setTimeout(() => {
-            this.toastService.show('Session expired. Please log in again.');
-            this.router.navigate(['/login']);
-          });
-          return;
-        }
-        this.users = this.localStorage.getUsers<any[]>() || [];
-        setTimeout(() => {
-          this.toastService.show('Using cached user data', 'warning');
+        
+        this.isLoading = false;
+        console.log('Processed data:', {
+          users: this.users.length,
+          teams: this.teams.length,
+          projects: this.projects.length,
+          sprints: this.sprints.length
         });
+      },
+      error: (error: any) => {
+        console.error('Error loading initial data:', error);
+        this.isLoading = false;
+        
+        // Fallback to localStorage and sample data
+        console.log('Falling back to localStorage...');
+        this.loadFromLocalStorage();
+        
+        // Initialize filtered lists
+        this.filteredProjects = [...this.projects];
+        this.filteredSprints = [...this.sprints];
       }
     });
   }
 
-  private loadTeams(): void {
+  private loadFromLocalStorage(): void {
+    // Load users from localStorage or initialize with empty array
+    this.users = this.localStorage.getUsers<any[]>() || [];
+    
+    // Load teams (keeping existing method as fallback)
+    this.loadTeamsFromAPI();
+    
+    // Load projects and sprints from localStorage with sample data fallback
+    const storedProjects = this.localStorage.getProjects<any[]>();
+    const storedSprints = this.localStorage.getSprints<any[]>();
+    
+    this.projects = storedProjects || this.getSampleProjects();
+    this.sprints = storedSprints || this.getSampleSprints();
+    
+    console.log('Loaded from localStorage:', {
+      users: this.users.length,
+      projects: this.projects.length,
+      sprints: this.sprints.length
+    });
+  }
+
+  private loadTeamsFromAPI(): void {
     this.authService.adminGetAllTeams().subscribe({
       next: (teams) => {
         this.teams = teams;
+        console.log('Teams loaded successfully:', teams);
       },
       error: (err) => {
         console.error('Error loading teams:', err);
-        if (err.status === 401) {
-          setTimeout(() => {
-            this.toastService.show('Session expired. Please log in again.');
-            this.router.navigate(['/login']);
-          });
-          return;
-        }
-        this.teams = this.localStorage.getTeams<any[]>() || [];
-        setTimeout(() => {
-          this.toastService.show('Using cached team data', 'warning');
-        });
-      }
-    });
-  }
-
-  private loadProjects(): void {
-    this.authService.adminGetAllProjects().subscribe({
-      next: (projects) => {
-        this.projects = projects;
-        this.filteredProjects = [...this.projects];
-        this.applyProjectsFilters();
-      },
-      error: (err) => {
-        console.error('Error loading projects:', err);
-        if (err.status === 401) {
-          setTimeout(() => {
-            this.toastService.show('Session expired. Please log in again.');
-            this.router.navigate(['/login']);
-          });
-          return;
-        }
-        this.projects = this.getSampleProjects();
-        this.filteredProjects = [...this.projects];
-        setTimeout(() => {
-          this.toastService.show('Using sample project data', 'warning');
-        });
+        // Fallback to sample data if API fails
+        this.teams = [
+          { _id: '1', name: 'Development Team', description: 'Frontend and Backend developers' },
+          { _id: '2', name: 'Design Team', description: 'UI/UX designers and graphic artists' }
+        ];
+        this.toastService.show('Using sample team data', 'warning');
       }
     });
   }
@@ -443,12 +547,19 @@ export class ProjectManagement implements OnInit {
                           project.description.toLowerCase().includes(this.searchProjectsTerm.toLowerCase());
       const matchesStatus = !this.statusFilter || project.status === this.statusFilter;
       const matchesPriority = !this.priorityFilter || project.priority === this.priorityFilter;
-      const matchesTeam = !this.teamFilter || project.team === this.teamFilter;
+      const matchesTeam = !this.teamFilter || this.getTeamNameById(project.team) === this.teamFilter;
       
       return matchesSearch && matchesStatus && matchesPriority && matchesTeam;
     });
 
     this.updateProjectsPagination();
+  }
+
+  // Gets team name by ID for display purposes
+  getTeamNameById(teamId: string | null | undefined): string {
+    if (!teamId) return 'No Team';
+    const team = this.teams.find(t => (t._id || t.id) === teamId);
+    return team ? team.name : teamId; // Fallback to original value if not found
   }
 
   toggleProjectsFilter(): void {
@@ -490,25 +601,6 @@ export class ProjectManagement implements OnInit {
     }
   }
 
-  viewProject(projectId: string): void {
-    this.selectedProject = this.projects.find(p => p.id === projectId);
-    if (this.selectedProject) {
-      this.editProjectForm.patchValue({
-        name: this.selectedProject.name,
-        description: this.selectedProject.description,
-        startDate: this.selectedProject.startDate,
-        deadline: this.selectedProject.deadline,
-        team: this.selectedProject.team,
-        manager: this.selectedProject.lead,
-        status: this.selectedProject.status,
-        priority: this.selectedProject.priority,
-        progress: this.selectedProject.progress,
-        budget: this.selectedProject.budget
-      });
-      this.showProjectDetailsModal = true;
-    }
-  }
-
   editProject(projectId: string): void {
     this.selectedProject = this.projects.find(p => p.id === projectId);
     if (this.selectedProject) {
@@ -518,7 +610,7 @@ export class ProjectManagement implements OnInit {
         startDate: this.selectedProject.startDate,
         deadline: this.selectedProject.deadline,
         team: this.selectedProject.team,
-        manager: this.selectedProject.lead,
+        manager: this.selectedProject.manager,
         status: this.selectedProject.status,
         priority: this.selectedProject.priority,
         progress: this.selectedProject.progress,
@@ -567,7 +659,6 @@ export class ProjectManagement implements OnInit {
   viewSprintDetails(sprintId: string): void {
     this.selectedSprint = this.sprints.find(s => s.id === sprintId);
     if (this.selectedSprint) {
-      this.currentSprintTasks = [...(this.selectedSprint.tasks || [])];
       this.editSprintForm.patchValue({
         name: this.selectedSprint.name,
         description: this.selectedSprint.description,
@@ -575,7 +666,8 @@ export class ProjectManagement implements OnInit {
         status: this.selectedSprint.status,
         startDate: this.selectedSprint.startDate,
         endDate: this.selectedSprint.endDate,
-        goal: this.selectedSprint.goal
+        goal: this.selectedSprint.goal,
+        selectedTasks: this.selectedSprint.tasks.map((task: any) => task.name)
       });
       this.showSprintDetailsModal = true;
     }
@@ -584,7 +676,6 @@ export class ProjectManagement implements OnInit {
   editSprint(sprintId: string): void {
     this.selectedSprint = this.sprints.find(s => s.id === sprintId);
     if (this.selectedSprint) {
-      this.currentSprintTasks = [...(this.selectedSprint.tasks || [])];
       this.editSprintForm.patchValue({
         name: this.selectedSprint.name,
         description: this.selectedSprint.description,
@@ -592,7 +683,8 @@ export class ProjectManagement implements OnInit {
         status: this.selectedSprint.status,
         startDate: this.selectedSprint.startDate,
         endDate: this.selectedSprint.endDate,
-        goal: this.selectedSprint.goal
+        goal: this.selectedSprint.goal,
+        selectedTasks: this.selectedSprint.tasks.map((task: any) => task.name)
       });
       this.showEditSprintModal = true;
     }
@@ -677,6 +769,14 @@ export class ProjectManagement implements OnInit {
 
   calculateSprintProgress(sprint: any): number {
     if (!sprint) return 0;
+    
+    // Use task completion percentage instead of time-based progress to avoid constant recalculation
+    if (sprint.tasks && sprint.tasks.length > 0) {
+      const completedTasks = sprint.tasks.filter((task: any) => task.status === 'done').length;
+      return Math.round((completedTasks / sprint.tasks.length) * 100);
+    }
+    
+    // Fallback to time-based calculation but round to avoid decimal precision issues
     const today = new Date();
     const start = new Date(sprint.startDate);
     const end = new Date(sprint.endDate);
@@ -686,7 +786,7 @@ export class ProjectManagement implements OnInit {
     
     const totalDuration = end.getTime() - start.getTime();
     const elapsedDuration = today.getTime() - start.getTime();
-    return (elapsedDuration / totalDuration) * 100;
+    return Math.round((elapsedDuration / totalDuration) * 100);
   }
 
   // Form Helper Methods
@@ -704,7 +804,16 @@ export class ProjectManagement implements OnInit {
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
-      // Handle file upload logic here
+      const filesArray = Array.from(input.files);
+      this.projectForm.get('files')?.setValue(filesArray);
+    }
+  }
+
+  onEditFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const filesArray = Array.from(input.files);
+      this.editProjectForm.get('files')?.setValue(filesArray);
     }
   }
 
@@ -716,10 +825,6 @@ export class ProjectManagement implements OnInit {
     this.showEditProjectModal = false;
     this.showSprintDetailsModal = false;
     this.showEditSprintModal = false;
-    // Reset task-related state
-    this.currentSprintTasks = [];
-    this.showTaskInput = false;
-    this.resetTaskInput();
   }
 
   // CRUD Operations
@@ -729,59 +834,80 @@ export class ProjectManagement implements OnInit {
       return;
     }
     
-    // Find team by name to get its ID
-    const selectedTeamName = this.projectForm.value.team;
-    const selectedTeam = this.teams.find(team => team.name === selectedTeamName);
-    if (!selectedTeam) {
-      setTimeout(() => {
-        this.toastService.show('Selected team not found. Please refresh and try again.');
-      });
-      return;
-    }
-
-    // Find lead by name to get their ID
-    const selectedLeadName = this.projectForm.value.manager;
-    const selectedLead = this.users.find(user => user.name === selectedLeadName);
-    if (!selectedLead) {
-      setTimeout(() => {
-        this.toastService.show('Selected manager not found. Please refresh and try again.');
-      });
-      return;
-    }
-    
-    const newProject = {
+    const newProjectData: any = {
       name: this.projectForm.value.name,
       description: this.projectForm.value.description,
       startDate: this.projectForm.value.startDate,
-      deadline: this.projectForm.value.endDate,
-      team: selectedTeam.id, // Send team ID instead of name
-      lead: selectedLead.id, // Send lead ID instead of name
-      status: 'not-started' as const,
-      priority: this.projectForm.value.priority,
-      progress: 0,
-      budget: this.projectForm.value.budget || 0
+      deadline: this.projectForm.value.endDate, // Backend expects 'deadline' not 'endDate'
+      status: 'not-started', // Use backend enum value
+      priority: this.projectForm.value.priority
     };
+
+    // Only add team if it's selected
+    if (this.projectForm.value.team) {
+      newProjectData.team = this.projectForm.value.team;
+    }
+
+    // Only add lead if it's selected
+    if (this.projectForm.value.manager) {
+      newProjectData.lead = this.projectForm.value.manager; // Backend expects 'lead' not 'manager'
+    }
+
+    // Only add teamMembers if they exist
+    if (this.projectForm.value.teamMembers && this.projectForm.value.teamMembers.length > 0) {
+      newProjectData.teamMembers = this.projectForm.value.teamMembers;
+    }
     
-    this.authService.adminCreateProject(newProject).subscribe({
-      next: (createdProject) => {
-        const mappedProject = this.authService.mapApiProjectToProject(createdProject);
-        this.projects.push(mappedProject);
+    console.log('Creating new project with data:', newProjectData);
+    console.log('Available users for lead selection:', this.users);
+    
+    this.authService.adminCreateProject(newProjectData).subscribe({
+      next: (createdProject: any) => {
+        console.log('Project created successfully:', createdProject);
+        
+        // Add the new project to local array
+        const newProject = {
+          id: createdProject._id || createdProject.id,
+          name: createdProject.name,
+          description: createdProject.description,
+          startDate: createdProject.startDate,
+          endDate: createdProject.deadline, // Backend sends 'deadline', frontend uses 'endDate'
+          deadline: createdProject.deadline,
+          team: createdProject.team,
+          teamName: createdProject.teamDetails?.name || 'Unassigned',
+          lead: createdProject.lead,
+          manager: createdProject.lead, // Map lead to manager for frontend compatibility
+          status: createdProject.status,
+          priority: createdProject.priority,
+          progress: createdProject.progress || 0,
+          teamMembers: createdProject.teamMembers || [],
+          createdAt: createdProject.createdAt,
+          updatedAt: createdProject.updatedAt
+        };
+        
+        this.projects.push(newProject);
         this.filteredProjects = [...this.projects];
         this.applyProjectsFilters();
+        
+        // Trigger teams refresh across all components
+        console.log('About to trigger teams refresh via auth service');
+        this.authService.triggerTeamsRefresh();
+        
         this.showAddProjectModal = false;
         this.projectForm.reset();
-        // Defer toast notification to avoid ExpressionChangedAfterItHasBeenCheckedError
+        
+        // Use setTimeout to avoid ExpressionChangedAfterItHasBeenCheckedError
         setTimeout(() => {
           this.toastService.show('Project created successfully!');
-        });
+        }, 0);
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('Error creating project:', error);
-        const errorMessage = error.error?.message || 'Error creating project. Please try again.';
-        // Defer error toast as well
+        
+        // Use setTimeout to avoid ExpressionChangedAfterItHasBeenCheckedError
         setTimeout(() => {
-          this.toastService.show(errorMessage);
-        });
+          this.toastService.show(error.message || 'Failed to create project', 'error');
+        }, 0);
       }
     });
   }
@@ -806,97 +932,85 @@ export class ProjectManagement implements OnInit {
       return;
     }
     
-    // Find team by name to get its ID
-    const selectedTeamName = this.editProjectForm.value.team;
-    const selectedTeam = this.teams.find(team => team.name === selectedTeamName);
-    if (!selectedTeam) {
-      setTimeout(() => {
-        this.toastService.show('Selected team not found. Please refresh and try again.');
-      });
-      return;
+    const index = this.projects.findIndex(p => p.id === this.selectedProject.id);
+    if (index !== -1) {
+      const oldTeam = this.projects[index].team;
+      const newTeam = this.editProjectForm.value.team;
+      
+      // Update team project counts if team changed
+      if (oldTeam !== newTeam) {
+        const teams = this.localStorage.getTeams<any[]>() || [];
+        
+        // Decrement count for old team
+        const oldTeamIndex = teams.findIndex(t => t.name === oldTeam);
+        if (oldTeamIndex !== -1) {
+          teams[oldTeamIndex].projects = Math.max(0, teams[oldTeamIndex].projects - 1);
+        }
+        
+        // Increment count for new team
+        const newTeamIndex = teams.findIndex(t => t.name === newTeam);
+        if (newTeamIndex !== -1) {
+          teams[newTeamIndex].projects += 1;
+        }
+        
+        this.localStorage.saveTeams(teams);
+      }
+      
+      this.projects[index] = {
+        ...this.projects[index],
+        name: this.editProjectForm.value.name,
+        description: this.editProjectForm.value.description,
+        startDate: this.editProjectForm.value.startDate,
+        deadline: this.editProjectForm.value.deadline,
+        team: newTeam,
+        manager: this.editProjectForm.value.manager,
+        status: this.editProjectForm.value.status,
+        priority: this.editProjectForm.value.priority,
+        progress: this.editProjectForm.value.progress,
+        budget: this.editProjectForm.value.budget
+      };
+      
+      this.localStorage.saveProjects(this.projects);
+      this.filteredProjects = [...this.projects];
+      this.applyProjectsFilters();
+      this.showEditProjectModal = false;
+      this.showProjectDetailsModal = false;
     }
 
-    // Find lead by name to get their ID
-    const selectedLeadName = this.editProjectForm.value.manager;
-    const selectedLead = this.users.find(user => user.name === selectedLeadName);
-    if (!selectedLead) {
-      setTimeout(() => {
-        this.toastService.show('Selected manager not found. Please refresh and try again.');
-      });
-      return;
-    }
     
-    const updateData = {
-      name: this.editProjectForm.value.name,
-      description: this.editProjectForm.value.description,
-      startDate: this.editProjectForm.value.startDate,
-      deadline: this.editProjectForm.value.deadline,
-      team: selectedTeam.id, // Send team ID instead of name
-      lead: selectedLead.id, // Send lead ID instead of name
-      status: this.editProjectForm.value.status,
-      priority: this.editProjectForm.value.priority,
-      progress: this.editProjectForm.value.progress,
-      budget: this.editProjectForm.value.budget
-    };
-    
-    this.authService.adminUpdateProject(this.selectedProject.id, updateData).subscribe({
-      next: (updatedProject) => {
-        const mappedProject = this.authService.mapApiProjectToProject(updatedProject);
-        const index = this.projects.findIndex(p => p.id === this.selectedProject.id);
-        if (index !== -1) {
-          this.projects[index] = mappedProject;
-          this.filteredProjects = [...this.projects];
-          this.applyProjectsFilters();
-          this.showEditProjectModal = false;
-          this.showProjectDetailsModal = false;
-          // Defer toast notification to avoid ExpressionChangedAfterItHasBeenCheckedError
-          setTimeout(() => {
-            this.toastService.show('Project updated successfully!');
-          });
-        }
-      },
-      error: (error) => {
-        console.error('Error updating project:', error);
-        const errorMessage = error.error?.message || 'Error updating project. Please try again.';
-        // Defer error toast as well
-        setTimeout(() => {
-          this.toastService.show(errorMessage);
-        });
-      }
-    });
   }
 
   deleteProject(project: any): void {
-      this.dialogService.open({
-          title: 'Confirm Deletion',
-          message: `Are you sure you want to delete project "${project.name}"? This action cannot be undone.`,
-          confirmButtonText: 'Delete Project',
-          confirmButtonClass: 'bg-red-600 hover:bg-red-700',
-          onConfirm: () => this.executeDeleteProject(project)
-      });
+    if (!project) {
+      console.error('Project is null or undefined');
+      this.toastService.show('Error: Project not found', 'error');
+      return;
+    }
+
+    // Ensure project has a valid ID
+    const projectId = project.id || project._id;
+    if (!projectId) {
+      console.error('Project has no valid ID');
+      this.toastService.show('Error: Invalid project ID', 'error');
+      return;
+    }
+
+    this.dialogService.open({
+      title: 'Confirm Deletion',
+      message: `Are you sure you want to delete project "${project.name}"? This action cannot be undone.`,
+      confirmButtonText: 'Delete Project',
+      confirmButtonClass: 'bg-red-600 hover:bg-red-700',
+      onConfirm: () => this.executeDeleteProject(project)
+    });
   }
 
   private executeDeleteProject(project: any): void {
-    this.authService.adminDeleteProject(project.id).subscribe({
-      next: () => {
-        this.projects = this.projects.filter(p => p.id !== project.id);
-        this.filteredProjects = [...this.projects];
-        this.applyProjectsFilters();
-        this.closeAllModals();
-        // Defer toast notification to avoid ExpressionChangedAfterItHasBeenCheckedError
-        setTimeout(() => {
-          this.toastService.show(`Project "${project.name}" deleted successfully.`);
-        });
-      },
-      error: (error) => {
-        console.error('Error deleting project:', error);
-        const errorMessage = error.error?.message || 'Error deleting project. Please try again.';
-        // Defer error toast as well
-        setTimeout(() => {
-          this.toastService.show(errorMessage);
-        });
-      }
-    });
+      const projectId = project.id || project._id;
+      this.projects = this.projects.filter(p => (p.id || p._id) !== projectId);
+      this.localStorage.saveProjects(this.projects);
+      this.applyProjectsFilters();
+      this.closeAllModals();
+      this.toastService.show(`Project "${project.name}" deleted successfully.`);
   }
 
   createNewSprint(): void {
@@ -905,44 +1019,60 @@ export class ProjectManagement implements OnInit {
       return;
     }
     
-    const sprintData = {
+    const newSprintData = {
       name: this.sprintForm.value.name,
       description: this.sprintForm.value.description,
       project: this.sprintForm.value.project,
-      status: this.sprintForm.value.status,
+      status: this.sprintForm.value.status || 'upcoming',
       startDate: this.sprintForm.value.startDate,
       endDate: this.sprintForm.value.endDate,
-      goal: this.sprintForm.value.goal,
-      tasks: this.currentSprintTasks.map(task => ({
-        id: task.id || `T${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: task.name,
-        assignee: task.assignee || (this.users[0]?.id || ''),
-        dueDate: this.sprintForm.value.endDate,
-        status: task.status || 'todo' as 'todo' | 'in-progress' | 'done',
-        priority: task.priority || 'medium' as 'low' | 'medium' | 'high',
-        estimatedHours: task.estimatedHours || 0,
-        description: task.description || ''
-      }))
+      goal: this.sprintForm.value.goal || '', // Backend expects 'goal' (singular)
+      tasks: [] // Start with empty tasks array
     };
     
-    this.authService.adminCreateSprint(sprintData).subscribe({
-      next: (newSprint) => {
+    console.log('Creating new sprint:', newSprintData);
+    
+    this.authService.adminCreateSprint(newSprintData).subscribe({
+      next: (createdSprint: any) => {
+        console.log('Sprint created successfully:', createdSprint);
+        
+        // Add the new sprint to local array
+        const newSprint = {
+          id: createdSprint._id || createdSprint.id,
+          name: createdSprint.name,
+          description: createdSprint.description,
+          project: createdSprint.project?._id || createdSprint.project,
+          projectName: createdSprint.project?.name || 'Unassigned',
+          status: createdSprint.status,
+          startDate: createdSprint.startDate,
+          endDate: createdSprint.endDate,
+          goal: createdSprint.goal || '', // Backend sends 'goal' (singular)
+          goals: createdSprint.goal ? [createdSprint.goal] : [], // Frontend compatibility
+          progress: createdSprint.progress || 0,
+          tasks: createdSprint.tasks || [],
+          createdAt: createdSprint.createdAt,
+          updatedAt: createdSprint.updatedAt
+        };
+        
         this.sprints.push(newSprint);
         this.filteredSprints = [...this.sprints];
         this.applySprintsFilters();
+        
         this.showAddSprintModal = false;
         this.sprintForm.reset();
-        this.currentSprintTasks = []; // Reset task list
+        
+        // Use setTimeout to avoid ExpressionChangedAfterItHasBeenCheckedError
         setTimeout(() => {
-          this.toastService.show(`Sprint "${newSprint.name}" created successfully.`);
-        });
+          this.toastService.show('Sprint created successfully!');
+        }, 0);
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('Error creating sprint:', error);
-        const errorMessage = error.message || 'Error creating sprint. Please try again.';
+        
+        // Use setTimeout to avoid ExpressionChangedAfterItHasBeenCheckedError
         setTimeout(() => {
-          this.toastService.show(errorMessage, 'error');
-        });
+          this.toastService.show(error.message || 'Failed to create sprint', 'error');
+        }, 0);
       }
     });
   }
@@ -963,49 +1093,34 @@ export class ProjectManagement implements OnInit {
       return;
     }
     
-    const sprintData = {
-      name: this.editSprintForm.value.name,
-      description: this.editSprintForm.value.description,
-      project: this.editSprintForm.value.project,
-      status: this.editSprintForm.value.status,
-      startDate: this.editSprintForm.value.startDate,
-      endDate: this.editSprintForm.value.endDate,
-      goal: this.editSprintForm.value.goal,
-      tasks: this.currentSprintTasks.map(task => ({
-        id: task.id || `T${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: task.name,
-        assignee: task.assignee || (this.users[0]?.id || ''),
-        dueDate: this.editSprintForm.value.endDate,
-        status: task.status || 'todo',
-        priority: task.priority || 'medium',
-        estimatedHours: task.estimatedHours || 0,
-        description: task.description || ''
-      }))
-    };
-    
-    this.authService.adminUpdateSprint(this.selectedSprint.id, sprintData).subscribe({
-      next: (updatedSprint) => {
-        const index = this.sprints.findIndex(s => s.id === this.selectedSprint.id);
-        if (index !== -1) {
-          this.sprints[index] = updatedSprint;
-          this.filteredSprints = [...this.sprints];
-          this.applySprintsFilters();
-          this.showEditSprintModal = false;
-          this.showSprintDetailsModal = false;
-          this.currentSprintTasks = []; // Reset task list
-          setTimeout(() => {
-            this.toastService.show(`Sprint "${updatedSprint.name}" updated successfully.`);
-          });
-        }
-      },
-      error: (error) => {
-        console.error('Error updating sprint:', error);
-        const errorMessage = error.message || 'Error updating sprint. Please try again.';
-        setTimeout(() => {
-          this.toastService.show(errorMessage, 'error');
-        });
-      }
-    });
+    const index = this.sprints.findIndex(s => s.id === this.selectedSprint.id);
+    if (index !== -1) {
+      this.sprints[index] = {
+        ...this.sprints[index],
+        name: this.editSprintForm.value.name,
+        description: this.editSprintForm.value.description,
+        project: this.editSprintForm.value.project,
+        status: this.editSprintForm.value.status,
+        startDate: this.editSprintForm.value.startDate,
+        endDate: this.editSprintForm.value.endDate,
+        goal: this.editSprintForm.value.goal,
+        tasks: this.editSprintForm.value.selectedTasks.map((taskName: string) => ({
+          id: 'T' + Math.floor(100 + Math.random() * 900),
+          name: taskName,
+          assignee: 'Unassigned',
+          dueDate: this.editSprintForm.value.endDate,
+          status: 'todo',
+          priority: 'medium',
+          estimatedHours: 0
+        }))
+      };
+      
+      this.localStorage.saveSprints(this.sprints);
+      this.filteredSprints = [...this.sprints];
+      this.applySprintsFilters();
+      this.showEditSprintModal = false;
+      this.showSprintDetailsModal = false;
+    }
   }
 
   deleteSprint(sprint: any): void {
@@ -1019,121 +1134,10 @@ export class ProjectManagement implements OnInit {
   }
   
   private executeDeleteSprint(sprint: any): void {
-    this.authService.adminDeleteSprint(sprint.id).subscribe({
-      next: () => {
-        this.sprints = this.sprints.filter(s => s.id !== sprint.id);
-        this.filteredSprints = [...this.sprints];
-        this.applySprintsFilters();
-        this.closeAllModals();
-        setTimeout(() => {
-          this.toastService.show(`Sprint "${sprint.name}" deleted successfully.`);
-        });
-      },
-      error: (error) => {
-        console.error('Error deleting sprint:', error);
-        const errorMessage = error.message || 'Error deleting sprint. Please try again.';
-        setTimeout(() => {
-          this.toastService.show(errorMessage, 'error');
-        });
-      }
-    });
-  }
-
-  // Team selection handlers for auto-populating project manager
-  onTeamSelected(event: any): void {
-    const selectedTeamName = event.target.value;
-    if (selectedTeamName) {
-      const selectedTeam = this.teams.find(team => team.name === selectedTeamName);
-      if (selectedTeam && selectedTeam.leadDetails) {
-        // Auto-select the team lead as project manager
-        this.projectForm.patchValue({
-          manager: selectedTeam.leadDetails.name
-        });
-      }
-    } else {
-      // Clear manager field if no team is selected
-      this.projectForm.patchValue({
-        manager: ''
-      });
-    }
-  }
-
-  onEditTeamSelected(event: any): void {
-    const selectedTeamName = event.target.value;
-    if (selectedTeamName) {
-      const selectedTeam = this.teams.find(team => team.name === selectedTeamName);
-      if (selectedTeam && selectedTeam.leadDetails) {
-        // Auto-select the team lead as project manager
-        this.editProjectForm.patchValue({
-          manager: selectedTeam.leadDetails.name
-        });
-      }
-    } else {
-      // Clear manager field if no team is selected
-      this.editProjectForm.patchValue({
-        manager: ''
-      });
-    }
-  }
-
-  // Enhanced Task Management Methods
-  addNewTask(): void {
-    this.showTaskInput = true;
-    this.resetTaskInput();
-  }
-
-  cancelTaskInput(): void {
-    this.showTaskInput = false;
-    this.resetTaskInput();
-  }
-
-  saveNewTask(): void {
-    if (!this.newTaskInput.name.trim()) return;
-
-    const task = {
-      id: `T${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: this.newTaskInput.name.trim(),
-      assignee: this.newTaskInput.assignee || '',
-      priority: this.newTaskInput.priority,
-      estimatedHours: this.newTaskInput.estimatedHours || 0,
-      description: this.newTaskInput.description.trim(),
-      status: 'todo'
-    };
-
-    this.currentSprintTasks.push(task);
-    this.showTaskInput = false;
-    this.resetTaskInput();
-  }
-
-  removeSprintTask(index: number): void {
-    this.currentSprintTasks.splice(index, 1);
-  }
-
-  addPresetTask(taskName: string): void {
-    const task = {
-      id: `T${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: taskName,
-      assignee: '',
-      priority: 'medium',
-      estimatedHours: 0,
-      description: '',
-      status: 'todo'
-    };
-    this.currentSprintTasks.push(task);
-  }
-
-  resetTaskInput(): void {
-    this.newTaskInput = {
-      name: '',
-      assignee: '',
-      priority: 'medium',
-      estimatedHours: 0,
-      description: ''
-    };
-  }
-
-  getUserName(userId: string): string {
-    const user = this.users.find(u => u.id === userId);
-    return user ? user.name : '';
+      this.sprints = this.sprints.filter(s => s.id !== sprint.id);
+      this.localStorage.saveSprints(this.sprints);
+      this.applySprintsFilters();
+      this.closeAllModals();
+      this.toastService.show(`Sprint "${sprint.name}" deleted successfully.`);
   }
 }
