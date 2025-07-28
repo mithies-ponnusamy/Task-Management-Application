@@ -1,67 +1,78 @@
 // dashboard.ts
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Task, User } from '../../../model/user.model';
-import { Observable, of, BehaviorSubject, combineLatest } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { TaskService } from '../../../core/services/task/task';
-import { FormsModule } from '@angular/forms';
-import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
-import { UserService } from '../../../core/services/user/user';
+import { Auth } from '../../../core/services/auth/auth';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
-    DragDropModule
+    RouterModule
   ],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })
-export class Dashboard implements OnInit {
+export class Dashboard implements OnInit, OnDestroy {
   completedTasks$!: Observable<number>;
   inProgressTasks$!: Observable<number>;
   pendingReviewTasks$!: Observable<number>;
   overdueTasks$!: Observable<number>;
   allTasks$!: Observable<Task[]>;
-  paginatedTasks$!: Observable<Task[]>;
   recentActivities$!: Observable<any[]>;
-  currentUser!: User;
+  currentUser: User | null = null;
 
-  currentPage = 1;
-  pageSize = 5;
-  showAll = false;
-
-  showTaskModal = false;
-  selectedTask: Task | null = null;
-  boardTasks: { [boardId: string]: Task[] } = {};
+  loading: boolean = true;
   
-  private pageSubject = new BehaviorSubject<number>(1);
+  private profileSubscription: Subscription | null = null;
 
   constructor(
     private taskService: TaskService,
-    private userService: UserService
+    private authService: Auth
   ) {}
 
   ngOnInit(): void {
-    // Initialize data immediately
-    this.initializeData();
-    this.currentUser = this.userService.getUsers().find(user => user.id === '2')!; // Fixed
-    this.initializeBoardTasks();
-    
-    this.allTasks$ = this.taskService.getTasksByAssignee(this.currentUser.name).pipe(
-      map(tasks => {
-        const additionalTasks = this.generateMockTasksCount(15);
-        return this.addMockProjectData([...tasks, ...additionalTasks]);
-      })
-    );
+    this.loadUserData();
   }
 
-  initializeData(): void {
-    this.currentUser = this.userService.getUsers().find(user => user.id === '2')!;
-    this.initializeBoardTasks();
+  ngOnDestroy(): void {
+    if (this.profileSubscription) {
+      this.profileSubscription.unsubscribe();
+    }
+  }
+
+  private loadUserData(): void {
+    this.loading = true;
+    
+    // Get current user from auth service
+    this.currentUser = this.authService.getCurrentUser();
+    
+    // Load fresh user data from backend
+    this.profileSubscription = this.authService.getUserProfile().subscribe({
+      next: (user) => {
+        this.currentUser = user;
+        this.initializeData();
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Error loading user profile:', error);
+        // Fallback to stored user data
+        this.currentUser = this.authService.getCurrentUser();
+        if (this.currentUser) {
+          this.initializeData();
+        }
+        this.loading = false;
+      }
+    });
+  }
+
+  private initializeData(): void {
+    if (!this.currentUser) return;
     
     this.allTasks$ = this.taskService.getTasksByAssignee(this.currentUser.name).pipe(
       map(tasks => {
@@ -90,237 +101,117 @@ export class Dashboard implements OnInit {
       })
     );
     
-    this.paginatedTasks$ = combineLatest([
-      this.allTasks$,
-      this.pageSubject
-    ]).pipe(
-      map(([tasks, page]) => {
-        const startIndex = (page - 1) * this.pageSize;
-        return tasks.slice(startIndex, startIndex + this.pageSize);
+    this.recentActivities$ = this.taskService.getTasksByAssignee(this.currentUser.name).pipe(
+      map(tasks => {
+        const activities: any[] = [];
+        
+        // Get recent task assignments (tasks created in last 7 days)
+        const recentTasks = tasks.filter(task => {
+          const taskDate = new Date(task.createdAt || new Date());
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          return taskDate >= sevenDaysAgo;
+        });
+
+        // Add task assignment activities
+        recentTasks.forEach(task => {
+          activities.push({
+            type: 'task_assigned',
+            message: `You were assigned to "${task.title}" in project ${task.project || 'Unknown'}`,
+            time: this.getRelativeTime(task.createdAt || new Date()),
+            taskId: task.id
+          });
+        });
+
+        // Add task completion activities
+        const completedTasks = tasks.filter(task => 
+          task.status === 'done' && task.completionDate
+        ).slice(0, 3);
+
+        completedTasks.forEach(task => {
+          activities.push({
+            type: 'task_completed',
+            message: `You completed "${task.title}"`,
+            time: this.getRelativeTime(task.completionDate!),
+            taskId: task.id
+          });
+        });
+
+        // Add deadline reminders for upcoming tasks
+        const upcomingTasks = tasks.filter(task => {
+          if (!task.dueDate || task.status === 'done') return false;
+          const dueDate = new Date(task.dueDate);
+          const today = new Date();
+          const threeDaysFromNow = new Date();
+          threeDaysFromNow.setDate(today.getDate() + 3);
+          return dueDate >= today && dueDate <= threeDaysFromNow;
+        }).slice(0, 2);
+
+        upcomingTasks.forEach(task => {
+          activities.push({
+            type: 'deadline_reminder',
+            message: `"${task.title}" is due ${this.getRelativeTime(task.dueDate!)}`,
+            time: 'Reminder',
+            taskId: task.id
+          });
+        });
+
+        // Sort by most recent and limit to 5
+        return activities.slice(0, 5);
       })
     );
-    
-    this.recentActivities$ = of([
-      {
-        type: 'completed',
-        message: 'You completed task "Design homepage mockup"',
-        time: '2 hours ago'
-      },
-      {
-        type: 'comment',
-        message: 'John Doe commented on your task "Implement user authentication"',
-        time: '5 hours ago'
-      },
-      {
-        type: 'assigned',
-        message: 'You were assigned to "Write API documentation"',
-        time: 'Yesterday'
-      }
-    ]);
-  }
-
-  private initializeBoardTasks(): void {
-    this.boardTasks['website'] = [
-      ...this.generateMockTasks('todo', 'website'),
-      ...this.generateMockTasks('in-progress', 'website'),
-      ...this.generateMockTasks('review', 'website'),
-      ...this.generateMockTasks('done', 'website')
-    ];
-  }
-
-  private generateMockTasks(status: string, boardId: string): Task[] {
-    const today = new Date();
-    const boardSpecificTasks = this.getBoardSpecificTasks('website', status as 'todo' | 'in-progress' | 'review' | 'done');
-    
-    return boardSpecificTasks.map(task => ({
-      id: `${boardId}-${status}-${Math.random().toString(36).substring(2, 9)}`,
-      title: task.title,
-      description: task.description,
-      dueDate: new Date(today.setDate(today.getDate() + task.daysDue)),
-      status: status as any,
-      priority: task.priority || 'medium',
-      estimatedHours: task.estimatedHours || 4,
-      assignee: this.currentUser.name,
-      tags: task.tags || [],
-      projectId: boardId,
-      project: 'Website Redesign',
-      completionDate: status === 'done' ? new Date(today.setDate(today.getDate() - 1)) : undefined
-    }));
-  }
-
-  private getBoardSpecificTasks(
-    boardId: 'website',
-    status: 'todo' | 'in-progress' | 'review' | 'done'
-  ): any[] {
-    return {
-      'website': {
-        'todo': [
-          { title: 'Design homepage layout', description: 'Create wireframes for the new homepage design', daysDue: 5, tags: ['design', 'ui'], priority: 'medium' },
-          { title: 'Create style guide', description: 'Define color scheme and typography', daysDue: 7, tags: ['design'], priority: 'medium' }
-        ],
-        'in-progress': [
-          { title: 'Implement header component', description: 'Build responsive header with navigation', daysDue: 3, tags: ['frontend'], priority: 'high' }
-        ],
-        'review': [
-          { title: 'Mobile responsiveness fixes', description: 'Review fixes for mobile layout issues', daysDue: 2, tags: ['mobile', 'bug'], priority: 'medium' }
-        ],
-        'done': [
-          { title: 'API documentation', description: 'Document all endpoints for backend services', daysDue: -1, tags: ['documentation'], priority: 'low' }
-        ]
-      }
-    }[boardId][status];
-  }
-
-  getTasksForBoard(boardId: string, status: string): Task[] {
-    return this.boardTasks[boardId]?.filter(task => task.status === status) || [];
-  }
-
-  drop(event: CdkDragDrop<Task[]>) {
-    if (event.previousContainer === event.container) {
-      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
-    } else {
-      transferArrayItem(
-        event.previousContainer.data,
-        event.container.data,
-        event.previousIndex,
-        event.currentIndex
-      );
-      
-      // Update task status based on the new column
-      const task = event.container.data[event.currentIndex];
-      let newStatus: 'todo' | 'in-progress' | 'review' | 'done';
-      
-      if (event.container.id.includes('todo')) newStatus = 'todo';
-      else if (event.container.id.includes('inProgress')) newStatus = 'in-progress';
-      else if (event.container.id.includes('review')) newStatus = 'review';
-      else newStatus = 'done';
-      
-      task.status = newStatus;
-    }
-  }
-
-  toggleViewAll() {
-    this.showAll = !this.showAll;
-    if (!this.showAll) {
-      this.currentPage = 1;
-      this.pageSubject.next(this.currentPage);
-    }
-  }
-
-  nextPage() {
-    this.currentPage++;
-    this.pageSubject.next(this.currentPage);
-  }
-
-  previousPage() {
-    if (this.currentPage > 1) {
-      this.currentPage--;
-      this.pageSubject.next(this.currentPage);
-    }
   }
 
   private generateMockTasksCount(count: number): Task[] {
-    const statuses: Array<'todo' | 'in-progress' | 'review' | 'done'> = ['todo', 'in-progress', 'review', 'done'];
-    const tasks: Task[] = [];
-    const today = new Date();
+    const mockTasks: Task[] = [];
+    const statuses: ('todo' | 'in-progress' | 'review' | 'done')[] = ['todo', 'in-progress', 'review', 'done'];
+    const priorities: ('low' | 'medium' | 'high')[] = ['low', 'medium', 'high'];
     
     for (let i = 0; i < count; i++) {
-      const daysOffset = Math.floor(Math.random() * 30) - 15; // -15 to +15 days
-      const dueDate = new Date(today);
-      dueDate.setDate(today.getDate() + daysOffset);
+      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+      const randomPriority = priorities[Math.floor(Math.random() * priorities.length)];
       
-      tasks.push({
+      mockTasks.push({
         id: `mock-${i}`,
         title: `Task ${i + 1}`,
         description: `Description for task ${i + 1}`,
-        dueDate: dueDate,
-        status: statuses[Math.floor(Math.random() * statuses.length)],
-        assignee: this.currentUser.name,
-        priority: 'medium',
-        projectId: `project-${Math.floor(Math.random() * 5) + 1}`,
-        tags: [],
-        project: 'Mock Project'
+        dueDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000),
+        status: randomStatus,
+        priority: randomPriority,
+        estimatedHours: Math.floor(Math.random() * 8) + 1,
+        assignee: this.currentUser?.name || 'Unknown',
+        tags: ['mock', 'task'],
+        projectId: 'mock-project',
+        project: 'Mock Project',
+        createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
+        completionDate: randomStatus === 'done' ? new Date() : undefined
       });
     }
     
-    return tasks;
+    return mockTasks;
   }
 
   private addMockProjectData(tasks: Task[]): Task[] {
-    const projects = ['Website Redesign', 'Mobile App', 'API Development', 'Marketing Site', 'Admin Dashboard'];
     return tasks.map(task => ({
       ...task,
-      project: projects[Math.floor(Math.random() * projects.length)]
+      project: task.project || 'Website Redesign',
+      projectId: task.projectId || 'proj-1'
     }));
   }
 
-  getStatusClass(status?: string): string {
-    switch(status) {
-      case 'done':
-        return 'bg-green-100 text-green-800';
-      case 'in-progress':
-        return 'bg-blue-100 text-blue-800';
-      case 'review':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'todo':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  }
+  private getRelativeTime(date: Date): string {
+    const now = new Date();
+    const diff = now.getTime() - new Date(date).getTime();
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-  getStatusText(status?: string): string {
-    switch(status) {
-      case 'done':
-        return 'Completed';
-      case 'in-progress':
-        return 'In Progress';
-      case 'review':
-        return 'Pending Review';
-      case 'todo':
-        return 'To Do';
-      default:
-        return status || 'Unknown';
-    }
-  }
-
-  getPriorityClass(priority: string): string {
-    switch(priority) {
-      case 'high':
-        return 'bg-purple-100 text-purple-800';
-      case 'medium':
-        return 'bg-blue-100 text-blue-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  }
-
-  getPriorityText(priority: string): string {
-    return priority.charAt(0).toUpperCase() + priority.slice(1);
-  }
-
-  isOverdue(dueDate?: Date): boolean {
-    if (!dueDate) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return new Date(dueDate) < today;
-  }
-
-  formatDate(date?: Date): string {
-    if (!date) return 'No date';
-    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  }
-
-  openTaskDetails(task: Task): void {
-    this.selectedTask = task;
-    this.showTaskModal = true;
-  }
-
-  closeTaskDetails(): void {
-    this.showTaskModal = false;
-    this.selectedTask = null;
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes} minutes ago`;
+    if (hours < 24) return `${hours} hours ago`;
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    return new Date(date).toLocaleDateString();
   }
 
   // Helper function for template

@@ -123,6 +123,7 @@ export interface TeamHierarchy {
 }
 
 export interface Project {
+  _id?: string;
   id: string;
   name: string;
   team: string;
@@ -141,6 +142,7 @@ export interface Project {
 }
 
 export interface Task {
+  _id?: string;
   id: string;
   title: string;
   description?: string;
@@ -179,13 +181,25 @@ export interface Notification {
 }
 
 export interface Sprint {
+  _id?: string;
   id: string;
   name: string;
-  projectId: string;
+  description?: string;
+  project: string | Project; // Can be ObjectId string or populated Project object
+  projectId?: string; // For easier frontend usage
+  teamId?: string;
   startDate: Date;
   endDate: Date;
-  status: 'not-started' | 'in-progress' | 'completed';
+  status: 'upcoming' | 'active' | 'completed' | 'cancelled';
+  goal?: string;
   tasks?: Task[];
+  stats?: {
+    tasksCompleted: number;
+    totalTasks: number;
+    timeSpent: number;
+    estimatedTime: number;
+  };
+  createdBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

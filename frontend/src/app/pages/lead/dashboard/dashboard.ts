@@ -55,6 +55,13 @@ export class Dashboard implements OnInit, OnDestroy {
   searchQuery: string = '';
   selectedBoardMember: string = '';
 
+  // Recent Activities
+  recentActivities: Array<{
+    type: string;
+    description: string;
+    timestamp: Date;
+  }> = [];
+
   private taskSubscription!: Subscription;
 
   constructor(
@@ -72,6 +79,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadProjects();
+    this.loadRecentActivities();
 
     // Subscribe to task updates
     this.taskSubscription = this.taskService.tasksUpdated$.subscribe(() => {
@@ -325,10 +333,55 @@ export class Dashboard implements OnInit, OnDestroy {
       onConfirm: () => {
         if (this.currentTask) {
           this.taskService.deleteTask(this.currentTask.id);
-          this.toastService.show('Task deleted successfully.', 'success');
           this.closeModals();
+          this.loadTasks();
         }
       }
     });
+  }
+
+  getActivityIcon(type: string): string {
+    switch (type) {
+      case 'task_created': return 'bg-green-100 text-green-600';
+      case 'task_completed': return 'bg-blue-100 text-blue-600';
+      case 'task_updated': return 'bg-yellow-100 text-yellow-600';
+      case 'member_added': return 'bg-purple-100 text-purple-600';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  }
+
+  getActivityIconClass(type: string): string {
+    switch (type) {
+      case 'task_created': return 'fas fa-plus text-xs';
+      case 'task_completed': return 'fas fa-check text-xs';
+      case 'task_updated': return 'fas fa-edit text-xs';
+      case 'member_added': return 'fas fa-user-plus text-xs';
+      default: return 'fas fa-info text-xs';
+    }
+  }
+
+  private loadRecentActivities(): void {
+    // This would typically come from an API
+    this.recentActivities = [
+      {
+        type: 'task_completed',
+        description: 'Task "Update user interface" was completed by John Doe',
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+      },
+      {
+        type: 'task_created',
+        description: 'New task "Review pull request #123" was created',
+        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000) // 4 hours ago
+      },
+      {
+        type: 'member_added',
+        description: 'Jane Smith was added to the team',
+        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) // 1 day ago
+      }
+    ];
+  }
+
+  private loadTasks(): void {
+    // Implementation for loading tasks (can be empty for now since we removed task board)
   }
 }

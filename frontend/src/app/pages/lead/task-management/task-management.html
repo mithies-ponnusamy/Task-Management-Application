@@ -2,13 +2,25 @@
   <div class="max-w-7xl mx-auto">
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold text-gray-800">Task Management</h1>
-      <button 
-        (click)="openCreateTaskModal()"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
-      >
-        <i class="fas fa-plus mr-2"></i> Create Task
-      </button>
+      <div>
+        <h1 class="text-3xl font-bold text-gray-800">Tasks</h1>
+        <p class="mt-1 text-sm text-gray-500">Create and manage tasks for assigned projects and admin-created sprints.</p>
+      </div>
+      <div class="flex space-x-3">
+        <button 
+          (click)="toggleView(viewMode === 'board' ? 'list' : 'board')"
+          class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center"
+        >
+          <i class="fas" [ngClass]="viewMode === 'board' ? 'fa-list' : 'fa-th-large'" class="mr-2"></i> 
+          {{viewMode === 'board' ? 'List View' : 'Board View'}}
+        </button>
+        <button 
+          (click)="openCreateTaskModal()"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+        >
+          <i class="fas fa-plus mr-2"></i> Create Task
+        </button>
+      </div>
     </div>
 
     <!-- Filters -->
@@ -33,7 +45,7 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Projects</option>
-            <option *ngFor="let project of projects" [value]="project._id">{{project.name}}</option>
+            <option *ngFor="let project of projects" [value]="project.id">{{project.name}}</option>
           </select>
         </div>
 
@@ -45,7 +57,7 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Sprints</option>
-            <option *ngFor="let sprint of sprints" [value]="sprint._id">{{sprint.name}}</option>
+            <option *ngFor="let sprint of sprints" [value]="sprint.id">{{sprint.name}}</option>
           </select>
         </div>
 
@@ -82,84 +94,164 @@
     </div>
 
     <!-- Tasks Table -->
-    <div *ngIf="!isLoading" class="bg-white rounded-lg shadow-sm overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sprint</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignee</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Points</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr *ngFor="let task of filteredTasks" class="hover:bg-gray-50">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div>
-                  <div class="text-sm font-medium text-gray-900">{{task.title}}</div>
-                  <div class="text-sm text-gray-500">{{task.description}}</div>
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{getProjectName(task.project._id || task.project)}}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{task.sprint ? getSprintName(task.sprint._id || task.sprint) : 'No Sprint'}}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{task.assignee ? (task.assignee.name || getMemberName(task.assignee)) : 'Unassigned'}}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <select
-                  [(ngModel)]="task.status"
-                  (change)="updateTaskStatus(task, task.status)"
-                  class="text-sm px-2 py-1 rounded-full border-0 focus:ring-2 focus:ring-blue-500"
-                  [ngClass]="getStatusColor(task.status)"
-                >
-                  <option *ngFor="let status of taskStatuses" [value]="status.value">{{status.label}}</option>
-                </select>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" [ngClass]="getPriorityColor(task.priority)">
-                  {{task.priority | titlecase}}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{task.dueDate | date:'MMM d, y'}}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{task.storyPoints}}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+    <div *ngIf="!isLoading && viewMode === 'list'" class="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div class="overflow-x-auto max-w-full">
+        <div class="min-w-full">
+          <table class="w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">Task</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">Project</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Sprint</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Assignee</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">Priority</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Due Date</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">Points</th>
+                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr *ngFor="let task of filteredTasks" class="hover:bg-gray-50">
+                <td class="px-4 py-4">
+                  <div class="max-w-[200px]">
+                    <div class="text-sm font-medium text-gray-900 truncate">{{task.title}}</div>
+                    <div class="text-sm text-gray-500 truncate">{{task.description}}</div>
+                  </div>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500">
+                  <div class="truncate max-w-[150px]">{{getProjectName(task.project || task.projectId)}}</div>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500">
+                  <div class="truncate max-w-[120px]">{{task.sprintId ? getSprintName(task.sprintId) : 'No Sprint'}}</div>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500">
+                  <div class="truncate max-w-[130px]">{{getAssigneeName(task) || 'Unassigned'}}</div>
+                </td>
+                <td class="px-4 py-4">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        [ngClass]="{
+                          'bg-yellow-100 text-yellow-800': task.status === 'todo',
+                          'bg-blue-100 text-blue-800': task.status === 'in-progress',
+                          'bg-purple-100 text-purple-800': task.status === 'review',
+                          'bg-green-100 text-green-800': task.status === 'done'
+                        }">
+                    {{task.status === 'todo' ? 'To Do' : task.status === 'in-progress' ? 'In Progress' : task.status === 'review' ? 'Review' : 'Done'}}
+                  </span>
+                </td>
+                <td class="px-4 py-4">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        [ngClass]="{
+                          'bg-green-100 text-green-800': task.priority === 'low',
+                          'bg-yellow-100 text-yellow-800': task.priority === 'medium',
+                          'bg-red-100 text-red-800': task.priority === 'high'
+                        }">
+                    {{task.priority | titlecase}}
+                  </span>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500">
+                  <div class="truncate max-w-[120px]">{{task.dueDate | date:'MMM d, y'}}</div>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500 text-center">
+                  {{task.storyPoints || 1}}
+                </td>
+                <td class="px-4 py-4 text-right text-sm font-medium">
+                  <div class="flex justify-end space-x-2">
+                    <button 
+                      (click)="openEditTaskModal(task)"
+                      class="text-indigo-600 hover:text-indigo-900 transition-colors"
+                      title="Edit Task"
+                    >
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button 
+                      (click)="deleteTask(task._id || task.id)"
+                      class="text-red-600 hover:text-red-900 transition-colors"
+                      title="Delete Task"
+                    >
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="filteredTasks.length === 0">
+                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                  No tasks found matching the current filters
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Board View -->
+    <div *ngIf="!isLoading && viewMode === 'board'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div *ngFor="let column of boardColumns" class="bg-gray-50 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-medium text-gray-900">{{ column.title }}</h3>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">
+            {{ column.tasks.length }}
+          </span>
+        </div>
+        
+        <div class="space-y-3">
+          <div *ngFor="let task of column.tasks" class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
+            <div class="flex items-start justify-between mb-2">
+              <h4 class="text-sm font-medium text-gray-900 truncate flex-1">{{ task.title }}</h4>
+              <div class="flex space-x-1 ml-2">
                 <button
                   (click)="openEditTaskModal(task)"
-                  class="text-blue-600 hover:text-blue-900 mr-3"
-                  title="Edit"
+                  class="text-blue-600 hover:text-blue-900 p-1"
+                  title="Edit task"
                 >
-                  <i class="fas fa-edit"></i>
+                  <i class="fas fa-edit text-xs"></i>
                 </button>
                 <button
-                  (click)="deleteTask(task._id)"
-                  class="text-red-600 hover:text-red-900"
-                  title="Delete"
+                  (click)="viewTaskDetails(task)"
+                  class="text-green-600 hover:text-green-900 p-1"
+                  title="View details"
                 >
-                  <i class="fas fa-trash"></i>
+                  <i class="fas fa-eye text-xs"></i>
                 </button>
-              </td>
-            </tr>
-            <tr *ngIf="filteredTasks.length === 0">
-              <td colspan="9" class="px-6 py-4 text-center text-gray-500">
-                No tasks found
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <button
+                  (click)="confirmDeleteTask(task)"
+                  class="text-red-600 hover:text-red-900 p-1"
+                  title="Delete task"
+                >
+                  <i class="fas fa-trash text-xs"></i>
+                </button>
+              </div>
+            </div>
+            
+            <p *ngIf="task.description" class="text-xs text-gray-600 mb-3 line-clamp-2">{{ task.description }}</p>
+            
+            <div class="flex flex-wrap gap-2 mb-3">
+              <span *ngIf="task.projectId" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {{ getProjectName(task.projectId) }}
+              </span>
+              <span *ngIf="task.sprintId" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                {{ getSprintName(task.sprintId) }}
+              </span>
+              <span *ngIf="task.priority" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium" [ngClass]="getPriorityClass(task.priority)">
+                {{ task.priority | titlecase }}
+              </span>
+            </div>
+            
+            <div class="flex items-center justify-between text-xs text-gray-500">
+              <span *ngIf="task.assignee">{{ task.assignee }}</span>
+              <span *ngIf="task.dueDate" class="flex items-center" [ngClass]="{'text-red-500': isOverdue(task)}">
+                <i class="fas fa-calendar-alt mr-1"></i>
+                {{ task.dueDate | date:'MMM d' }}
+              </span>
+            </div>
+          </div>
+          
+          <div *ngIf="column.tasks.length === 0" class="text-center text-gray-400 py-8">
+            <i class="fas fa-inbox text-2xl mb-2"></i>
+            <p class="text-sm">No tasks</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -209,8 +301,11 @@
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select Project</option>
-              <option *ngFor="let project of projects" [value]="project._id">{{project.name}}</option>
+              <option *ngFor="let project of projects" [value]="project.id">{{project.name}}</option>
             </select>
+            <div *ngIf="taskFormErrors.projectId" class="text-red-500 text-xs mt-1">
+              {{taskFormErrors.projectId}}
+            </div>
           </div>
 
           <div>
@@ -221,8 +316,11 @@
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">No Sprint</option>
-              <option *ngFor="let sprint of getAvailableSprintsForProject(newTask.projectId)" [value]="sprint._id">{{sprint.name}}</option>
+              <option *ngFor="let sprint of getAvailableSprintsForProject(newTask.projectId || '')" [value]="sprint.id">{{sprint.name}}</option>
             </select>
+            <div *ngIf="taskFormErrors.sprintId" class="text-red-500 text-xs mt-1">
+              {{taskFormErrors.sprintId}}
+            </div>
           </div>
 
           <div>
@@ -281,7 +379,7 @@
           </button>
           <button
             type="submit"
-            [disabled]="isCreatingTask || !newTask.title.trim() || !newTask.projectId"
+            [disabled]="isCreatingTask || !newTask.title?.trim() || !newTask.projectId"
             class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
           >
             <span *ngIf="!isCreatingTask">Create Task</span>

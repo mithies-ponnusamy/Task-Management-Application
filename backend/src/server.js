@@ -19,6 +19,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Request logger
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - Body:`, req.body);
+  next();
+});
+
 // Define API routes
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes); // Correctly mount admin routes under /api/admin/users

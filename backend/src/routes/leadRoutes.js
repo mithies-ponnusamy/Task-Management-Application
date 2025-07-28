@@ -41,7 +41,11 @@ router.get('/team/available-users', getAvailableUsers);
 
 // Team member management
 router.route('/team/members')
-  .post(addTeamMembers)      // Add members to team
+  .post((req, res, next) => {
+    console.log('=== Route reached: POST /team/members ===');
+    console.log('Request body:', req.body);
+    next();
+  }, addTeamMembers)      // Add members to team
   .delete(removeTeamMembers); // Remove members from team
 
 // Task management routes

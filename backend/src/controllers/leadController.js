@@ -375,7 +375,49 @@ const getAvailableUsers = asyncHandler(async (req, res) => {
 // @route   POST /api/lead/team/members
 // @access  Private/Lead
 const addTeamMembers = asyncHandler(async (req, res) => {
+  console.log('=== addTeamMembers START ===');
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
+  console.log('User from token:', req.user._id);
+  
   const { userIds } = req.body;
+  
+  console.log('Received userIds:', userIds);
+  console.log('userIds type:', typeof userIds);
+  console.log('userIds is array:', Array.isArray(userIds));
+  
+  // Validate userIds
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    console.log('Invalid userIds structure');
+    res.status(400);
+    throw new Error('Please provide valid user IDs');
+  }
+
+  // Log each userIds element
+  userIds.forEach((id, index) => {
+    console.log(`userIds[${index}]:`, id, 'type:', typeof id, 'value:', JSON.stringify(id));
+  });
+
+  // Filter out undefined, null, empty strings, and invalid ObjectIds
+  const validUserIds = userIds.filter(id => {
+    console.log('Filtering ID:', id, 'type:', typeof id);
+    if (!id || id === 'undefined' || id === 'null' || id === '') {
+      console.log('Filtered out invalid ID:', id);
+      return false;
+    }
+    // Check if it's a valid ObjectId format (24 character hex string)
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    console.log('ObjectId validation for', id, ':', isValidObjectId);
+    return isValidObjectId;
+  });
+
+  console.log('Valid userIds after filtering:', validUserIds);
+
+  if (validUserIds.length === 0) {
+    console.log('No valid user IDs after filtering');
+    res.status(400);
+    throw new Error('No valid user IDs provided');
+  }
+
   const lead = await User.findById(req.user._id);
 
   if (!lead || !lead.team) {
@@ -390,8 +432,41 @@ const addTeamMembers = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to manage this team');
   }
 
+  // Additional validation right before query - ensure no undefined values
+  const finalValidUserIds = validUserIds.filter(id => {
+    const isValid = id && 
+                   typeof id === 'string' && 
+                   id !== 'undefined' && 
+                   id !== 'null' && 
+                   id.trim() !== '' &&
+                   /^[0-9a-fA-F]{24}$/.test(id);
+    console.log('Final validation for ID:', id, 'isValid:', isValid);
+    return isValid;
+  });
+
+  console.log('Final validated user IDs:', finalValidUserIds);
+
+  if (finalValidUserIds.length === 0) {
+    console.log('No valid user IDs after final validation');
+    res.status(400);
+    throw new Error('No valid user IDs after final validation');
+  }
+
+  // Convert to proper ObjectIds
+  const mongoose = require('mongoose');
+  const objectIds = finalValidUserIds.map(id => {
+    try {
+      return new mongoose.Types.ObjectId(id);
+    } catch (error) {
+      console.error('Failed to create ObjectId for:', id, error);
+      return null;
+    }
+  }).filter(id => id !== null);
+
+  console.log('Converted ObjectIds:', objectIds);
+
   // Validate that users exist and are not already in teams
-  const users = await User.find({ _id: { $in: userIds } });
+  const users = await User.find({ _id: { $in: objectIds } });
   const availableUsers = users.filter(user => !user.team);
 
   if (availableUsers.length === 0) {
@@ -469,6 +544,10 @@ const removeTeamMembers = asyncHandler(async (req, res) => {
 // @route   POST /api/lead/tasks
 // @access  Private/Lead
 const createTask = asyncHandler(async (req, res) => {
+  console.log('=== CREATE TASK DEBUG ===');
+  console.log('Request body:', req.body);
+  console.log('User:', req.user._id);
+  
   const {
     title,
     description,
@@ -479,6 +558,17 @@ const createTask = asyncHandler(async (req, res) => {
     dueDate,
     storyPoints
   } = req.body;
+
+  console.log('Extracted fields:', {
+    title,
+    description,
+    assignee,
+    projectId,
+    sprintId,
+    priority,
+    dueDate,
+    storyPoints
+  });
 
   const lead = await User.findById(req.user._id);
   if (!lead) {
@@ -519,6 +609,19 @@ const createTask = asyncHandler(async (req, res) => {
       throw new Error('Sprint does not belong to this project');
     }
   }
+
+  console.log('About to create task with data:', {
+    title,
+    description,
+    assignee: assignee || null,
+    project: projectId,
+    sprint: sprintId || null,
+    priority: priority || 'medium',
+    status: 'todo',
+    dueDate,
+    storyPoints: storyPoints || 1,
+    createdBy: lead._id
+  });
 
   const task = await Task.create({
     title,
@@ -685,39 +788,63 @@ const deleteTask = asyncHandler(async (req, res) => {
 // @route   GET /api/lead/sprints
 // @access  Private/Lead
 const getLeadSprints = asyncHandler(async (req, res) => {
-  const { projectId, status } = req.query;
-  const lead = await User.findById(req.user._id);
+  try {
+    console.log('=== getLeadSprints START ===');
+    const { projectId, status } = req.query;
+    
+    const lead = await User.findById(req.user._id).populate('team');
+    console.log('Lead found:', lead ? lead.name : 'not found', 'Team:', lead?.team?._id);
 
-  if (!lead) {
-    res.status(404);
-    throw new Error('Lead not found');
+    if (!lead) {
+      res.status(404);
+      throw new Error('Lead not found');
+    }
+
+    // Build project filter - same logic as getLeadProjects
+    const projectFilter = {
+      $or: [
+        { lead: lead._id },
+        { team: lead.team?._id }
+      ]
+    };
+
+    if (projectId) {
+      projectFilter._id = projectId;
+    }
+
+    console.log('Project filter:', JSON.stringify(projectFilter));
+
+    const projects = await Project.find(projectFilter).select('_id name');
+    const projectIds = projects.map(p => p._id);
+    
+    console.log('Found projects:', projects.length, 'IDs:', projectIds);
+
+    // Build sprint filter
+    const sprintFilter = { project: { $in: projectIds } };
+    if (status) sprintFilter.status = status;
+
+    console.log('Sprint filter:', JSON.stringify(sprintFilter));
+
+    const sprints = await Sprint.find(sprintFilter)
+      .populate('project', 'name')
+      .populate('tasks')
+      .sort({ startDate: -1 })
+      .lean();
+
+    console.log('Found sprints:', sprints.length);
+    console.log('Sprint details:', sprints.map(s => ({ name: s.name, project: s.project?.name })));
+
+    console.log('=== getLeadSprints SUCCESS ===');
+    res.json(sprints);
+  } catch (error) {
+    console.error('=== getLeadSprints ERROR ===');
+    console.error('Error details:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: error.message || 'Failed to fetch sprints',
+      error: process.env.NODE_ENV === 'development' ? error.stack : 'Internal server error'
+    });
   }
-
-  // Get projects where this lead has access
-  const projectFilter = {
-    $or: [
-      { lead: lead._id },
-      { team: lead.team }
-    ]
-  };
-
-  if (projectId) {
-    projectFilter._id = projectId;
-  }
-
-  const projects = await Project.find(projectFilter).select('_id');
-  const projectIds = projects.map(p => p._id);
-
-  // Build sprint filter
-  const sprintFilter = { project: { $in: projectIds } };
-  if (status) sprintFilter.status = status;
-
-  const sprints = await Sprint.find(sprintFilter)
-    .populate('project', 'name')
-    .populate('tasks')
-    .sort({ startDate: -1 });
-
-  res.json(sprints);
 });
 
 // @desc    Update sprint (limited fields for team lead)

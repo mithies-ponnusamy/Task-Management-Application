@@ -1,40 +1,271 @@
-<div *ngIf="showModal" class="fixed inset-0 z-50 overflow-y-auto bg-gray-600 bg-opacity-75">
-  <div class="flex items-center justify-center min-h-screen py-8">
-    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-      <form #taskForm="ngForm" (ngSubmit)="createTask(taskForm)">
-        <div class="bg-white px-6 pt-5 pb-4">
-          <h3 class="text-lg leading-6 font-medium text-gray-900">Create New Task</h3>
-          <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="md:col-span-2"><label class="block text-sm font-medium text-gray-700">Title <span class="text-red-500">*</span></label><input type="text" [(ngModel)]="newTask.title" name="title" required class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"></div>
-            <div class="md:col-span-2"><label class="block text-sm font-medium text-gray-700">Description</label><textarea [(ngModel)]="newTask.description" name="description" rows="4" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea></div>
-            <div><label class="block text-sm font-medium text-gray-700">Project <span class="text-red-500">*</span></label><select [(ngModel)]="newTask.projectId" name="projectId" required class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option *ngFor="let p of projects" [value]="p.id">{{ p.name }}</option></select></div>
-            <div><label class="block text-sm font-medium text-gray-700">Assignee</label><select [(ngModel)]="newTask.assignee" name="assigneeId" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option value="">Unassigned</option><option *ngFor="let m of teamMembers" [value]="m.id">{{ m.name }}</option></select></div>
-            <div><label class="block text-sm font-medium text-gray-700">Due Date <span class="text-red-500">*</span></label><input type="date" [ngModel]="newTask.dueDate | date:'yyyy-MM-dd'" (ngModelChange)="newTask.dueDate = $event" name="dueDate" required class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"></div>
-            <div><label class="block text-sm font-medium text-gray-700">Priority</label><select [(ngModel)]="newTask.priority" name="priority" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+<div class="p-6 bg-gray-50 min-h-screen">
+  <div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center space-x-4">
+        <button 
+          (click)="cancel()"
+          class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <fa-icon [icon]="faArrowLeft" class="text-xl"></fa-icon>
+        </button>
+        <div>
+          <h1 class="text-3xl font-bold text-gray-800">Create New Task</h1>
+          <p class="mt-1 text-sm text-gray-500">Add a new task to your project and assign it to team members.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="bg-white rounded-lg shadow-sm">
+      <form (ngSubmit)="createTask()" class="p-6">
+        <div class="space-y-6">
+          <!-- Basic Information -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Task Title -->
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <fa-icon [icon]="faTasks" class="mr-2 text-gray-500"></fa-icon>
+                Task Title <span class="required-asterisk">*</span>
+              </label>
+              <input
+                type="text"
+                [(ngModel)]="newTask.title"
+                name="title"
+                placeholder="Enter task title..."
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                [class.border-red-500]="taskFormErrors.title"
+              >
+              <div *ngIf="taskFormErrors.title" class="text-red-500 text-sm mt-1">
+                {{taskFormErrors.title}}
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Description
+              </label>
+              <textarea
+                [(ngModel)]="newTask.description"
+                name="description"
+                rows="4"
+                placeholder="Describe the task in detail..."
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              ></textarea>
+            </div>
           </div>
-          <div class="mt-4 pt-4 border-t">
-              <h4 class="text-md font-medium text-gray-800 mb-2">Attachments</h4>
-              <div class="space-y-3">
-                  <div *ngFor="let attachment of newTask.attachments; let i = index" class="flex items-center gap-2">
-                      <input type="text" [(ngModel)]="attachment.name" [name]="'att_name_' + i" placeholder="Link Name (e.g., 'Figma Design')" class="w-1/3 border border-gray-300 rounded-md shadow-sm p-2">
-                      <input type="url" [(ngModel)]="attachment.url" [name]="'att_url_' + i" placeholder="https://..." class="flex-1 border border-gray-300 rounded-md shadow-sm p-2">
-                      <button type="button" (click)="removeAttachment(i)" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
-                  </div>
+
+          <!-- Project and Sprint -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Project -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <fa-icon [icon]="faProjectDiagram" class="mr-2 text-gray-500"></fa-icon>
+                Project <span class="required-asterisk">*</span>
+              </label>
+              <select
+                [value]="newTask.projectId"
+                name="projectId"
+                (change)="onProjectChange($event)"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                [class.border-red-500]="taskFormErrors.projectId"
+              >
+                <option value="">Select a project assigned to your team</option>
+                <option *ngFor="let project of projects; trackBy: trackByProjectId" [value]="project.id">
+                  {{project.name}} (ID: {{project.id}})
+                </option>
+              </select>
+              <div *ngIf="taskFormErrors.projectId" class="text-red-500 text-sm mt-1">
+                {{taskFormErrors.projectId}}
               </div>
-              <div class="mt-3 flex gap-4">
-                  <button type="button" (click)="addAttachmentLink()" class="text-sm text-blue-600 font-medium hover:text-blue-800">
-                      + Add Link
-                  </button>
-                  <label for="file-upload" class="text-sm text-blue-600 font-medium hover:text-blue-800 cursor-pointer">
-                      + Add File
-                  </label>
-                  <input id="file-upload" type="file" (change)="handleFileInput($event)" class="hidden"/>
+            </div>
+
+            <!-- Sprint -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <fa-icon [icon]="faCalendarAlt" class="mr-2 text-gray-500"></fa-icon>
+                Sprint (Optional)
+              </label>
+              <select
+                [(ngModel)]="newTask.sprintId"
+                name="sprintId"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                [class.border-red-500]="taskFormErrors.sprintId"
+                [class.dropdown-disabled]="!newTask.projectId || filteredSprints.length === 0"
+                [disabled]="!newTask.projectId || filteredSprints.length === 0"
+              >
+                <option value="">No sprint (Backlog)</option>
+                <option *ngFor="let sprint of filteredSprints" [value]="sprint.id">
+                  {{sprint.name}}
+                </option>
+              </select>
+              <div *ngIf="taskFormErrors.sprintId" class="text-red-500 text-sm mt-1">
+                {{taskFormErrors.sprintId}}
               </div>
+              <div *ngIf="!newTask.projectId" class="text-gray-500 text-xs mt-1">
+                Select a project first to see available sprints
+              </div>
+              <div *ngIf="newTask.projectId && filteredSprints.length === 0" class="text-gray-500 text-xs mt-1">
+                No sprints available for this project
+              </div>
+            </div>
+          </div>
+
+          <!-- Assignment and Priority -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Assignee -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <fa-icon [icon]="faUser" class="mr-2 text-gray-500"></fa-icon>
+                Assign To <span class="required-asterisk">*</span>
+              </label>
+              <select
+                [(ngModel)]="newTask.assignee"
+                name="assignee"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                [class.border-red-500]="taskFormErrors.assignee"
+              >
+                <option value="">Select team member</option>
+                <option *ngFor="let member of teamMembers" [value]="member._id || member.id">
+                  {{member.name}}
+                </option>
+              </select>
+              <div *ngIf="taskFormErrors.assignee" class="text-red-500 text-sm mt-1">
+                {{taskFormErrors.assignee}}
+              </div>
+            </div>
+
+            <!-- Priority -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <fa-icon [icon]="faFlag" class="mr-2 text-gray-500"></fa-icon>
+                Priority
+              </label>
+              <select
+                [(ngModel)]="newTask.priority"
+                name="priority"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option *ngFor="let priority of priorities" [value]="priority.value">
+                  {{priority.label}}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Due Date and Story Points -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Due Date -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <fa-icon [icon]="faClock" class="mr-2 text-gray-500"></fa-icon>
+                Due Date <span class="required-asterisk">*</span>
+              </label>
+              <input
+                type="date"
+                [(ngModel)]="newTask.dueDate"
+                name="dueDate"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                [class.border-red-500]="taskFormErrors.dueDate"
+              >
+              <div *ngIf="taskFormErrors.dueDate" class="text-red-500 text-sm mt-1">
+                {{taskFormErrors.dueDate}}
+              </div>
+            </div>
+
+            <!-- Story Points -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Story Points
+              </label>
+              <select
+                [(ngModel)]="newTask.storyPoints"
+                name="storyPoints"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option [value]="1">1 - Very Small</option>
+                <option [value]="2">2 - Small</option>
+                <option [value]="3">3 - Medium</option>
+                <option [value]="5">5 - Large</option>
+                <option [value]="8">8 - Very Large</option>
+                <option [value]="13">13 - Huge</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Attachments -->
+          <div>
+            <h3 class="text-lg font-medium text-gray-800 mb-4">Attachments (Optional)</h3>
+            <div class="space-y-3">
+              <div *ngFor="let attachment of newTask.attachments; let i = index" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <input
+                  type="text"
+                  [(ngModel)]="attachment.name"
+                  [name]="'attachment_name_' + i"
+                  placeholder="Link name (e.g., 'Design Mockup')"
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                <input
+                  type="url"
+                  [(ngModel)]="attachment.url"
+                  [name]="'attachment_url_' + i"
+                  placeholder="https://example.com"
+                  class="flex-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                <button
+                  type="button"
+                  (click)="removeAttachment(i)"
+                  class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                >
+                  <fa-icon [icon]="faTrash"></fa-icon>
+                </button>
+              </div>
+            </div>
+            
+            <div class="mt-4 flex gap-4">
+              <button
+                type="button"
+                (click)="addAttachmentLink()"
+                class="flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                <fa-icon [icon]="faPlus"></fa-icon>
+                Add Link
+              </button>
+              <label for="file-upload" class="flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors">
+                <fa-icon [icon]="faPlus"></fa-icon>
+                Add File
+              </label>
+              <input
+                id="file-upload"
+                type="file"
+                (change)="handleFileInput($event)"
+                class="hidden"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif"
+              />
+            </div>
           </div>
         </div>
-        <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3">
-          <button type="button" (click)="close()" class="px-4 py-2 bg-white border border-gray-300 rounded-md">Cancel</button>
-          <button type="submit" [disabled]="!taskForm.valid" class="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400">Create Task</button>
+
+        <!-- Actions -->
+        <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-200">
+          <button
+            type="button"
+            (click)="cancel()"
+            class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <fa-icon [icon]="faTimes" class="mr-2"></fa-icon>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            [disabled]="isSubmitting"
+            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            <fa-icon [icon]="faSave" class="mr-2"></fa-icon>
+            <span *ngIf="!isSubmitting">Create Task</span>
+            <span *ngIf="isSubmitting">Creating...</span>
+          </button>
         </div>
       </form>
     </div>

@@ -1,25 +1,35 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Task, Project, User } from '../../../model/user.model';
 import { TaskService } from '../../../core/services/task/task';
 import { UserService } from '../../../core/services/user/user';
+import { Auth } from '../../../core/services/auth/auth';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { Observable, BehaviorSubject, Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-tasks',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DragDropModule],
   templateUrl: './tasks.html',
   styleUrls: ['./tasks.css']
 })
-export class Tasks implements OnInit {
+export class Tasks implements OnInit, OnDestroy {
   assignedProjects: Project[] = [];
   allTasks: Task[] = [];
   filteredTasks: Task[] = [];
-  viewMode: 'list' | 'table' = 'list';
+  viewMode: 'list' | 'board' = 'board';
   showTaskModal = false;
   selectedTask: Task | null = null;
   currentUser!: User;
+  loading = false;
+  private subscriptions: Subscription[] = [];
+
+  // Task board data
+  allTasks$!: Observable<Task[]>;
+  private tasksSubject = new BehaviorSubject<Task[]>([]);
+  boardTasks: { [key: string]: Task[] } = {};
 
   filters = {
     status: '',
@@ -29,13 +39,119 @@ export class Tasks implements OnInit {
 
   constructor(
     private taskService: TaskService,
-    private userService: UserService
-  ) {}
+    private userService: UserService,
+    private authService: Auth
+  ) {
+    this.allTasks$ = this.tasksSubject.asObservable();
+  }
 
   ngOnInit(): void {
-    this.currentUser = this.userService.getUsers().find(user => user.id === '2')!;
+    this.loadCurrentUser();
     this.loadProjects();
-    this.loadTasks();
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+  }
+
+  private loadCurrentUser(): void {
+    this.loading = true;
+    const userSub = this.authService.getUserProfile().subscribe({
+      next: (user) => {
+        this.currentUser = user;
+        this.loadTasks();
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Error loading user profile:', error);
+        this.loading = false;
+      }
+    });
+    this.subscriptions.push(userSub);
+  }
+
+  loadTasks(): void {
+    if (!this.currentUser) return;
+    
+    console.log('DEBUG: Loading tasks for user:', this.currentUser);
+    
+    // Use backend API to get tasks assigned to current user
+    const taskSub = this.taskService.getMyTasks().subscribe({
+      next: (tasks) => {
+        console.log('DEBUG: Tasks from backend API:', tasks);
+        this.allTasks = tasks;
+        this.filteredTasks = [...this.allTasks];
+        this.tasksSubject.next(this.allTasks);
+        this.initializeBoardTasks();
+        this.applyFilters();
+      },
+      error: (error) => {
+        console.error('Error loading user tasks from backend:', error);
+        // Fallback: use the old method if backend fails
+        this.loadTasksFromService();
+      }
+    });
+    
+    this.subscriptions.push(taskSub);
+  }
+
+  private loadTasksFromService(): void {
+    this.taskService.getTasks().subscribe(tasks => {
+      console.log('DEBUG: All tasks from service (fallback):', tasks);
+      
+      // Filter tasks assigned to current user - check multiple fields
+      this.allTasks = tasks.filter(task => {
+        const isAssignedByName = task.assignee === this.currentUser.name;
+        const isAssignedById = task.assigneeId === this.currentUser.id;
+        console.log(`DEBUG: Task "${task.title}" - assignee: "${task.assignee}", assigneeId: "${task.assigneeId}", user: "${this.currentUser.name}" (${this.currentUser.id}) - assigned: ${isAssignedByName || isAssignedById}`);
+        return isAssignedByName || isAssignedById;
+      });
+      
+      console.log('DEBUG: Filtered tasks for user:', this.allTasks);
+      
+      this.filteredTasks = [...this.allTasks];
+      this.tasksSubject.next(this.allTasks);
+      this.initializeBoardTasks();
+      this.applyFilters();
+    });
+  }
+
+  private initializeBoardTasks(): void {
+    this.boardTasks = {
+      'my-tasks': this.allTasks
+    };
+  }
+
+  // Board view methods
+  getTasksForBoard(boardId: string, status: string): Task[] {
+    return this.allTasks.filter(task => task.status === status) || [];
+  }
+
+  drop(event: CdkDragDrop<Task[]>) {
+    if (event.previousContainer === event.container) {
+      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+    } else {
+      transferArrayItem(
+        event.previousContainer.data,
+        event.container.data,
+        event.previousIndex,
+        event.currentIndex
+      );
+      
+      // Update task status based on the new column
+      const task = event.container.data[event.currentIndex];
+      let newStatus: 'todo' | 'in-progress' | 'review' | 'done';
+      
+      if (event.container.id.includes('todo')) newStatus = 'todo';
+      else if (event.container.id.includes('inProgress')) newStatus = 'in-progress';
+      else if (event.container.id.includes('review')) newStatus = 'review';
+      else newStatus = 'done';
+      
+      task.status = newStatus;
+      
+      // Update the task on the backend
+      this.taskService.updateTask(task).subscribe();
+    }
   }
 
   loadProjects(): void {
@@ -72,80 +188,6 @@ export class Tasks implements OnInit {
     ];
   }
 
-  loadTasks(): void {
-    this.taskService.getTasksByAssignee(this.currentUser.name).subscribe(tasks => {
-      // Add mock tasks for demonstration
-      const mockTasks = this.generateMockTasks();
-      this.allTasks = [...tasks, ...mockTasks];
-      this.applyFilters();
-    });
-  }
-
-  generateMockTasks(): Task[] {
-    const today = new Date();
-    const tasks: Task[] = [];
-    
-    // Tasks for Website Redesign
-    tasks.push({
-      id: '101',
-      title: 'Design homepage layout',
-      description: 'Create wireframes for the new homepage design',
-      dueDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
-      status: 'in-progress',
-      priority: 'high',
-      assignee: this.currentUser.name,
-      project: 'Website Redesign',
-      projectId: '1',
-      tags: ['design', 'ui'],
-      progress: 75
-    });
-    
-    tasks.push({
-      id: '102',
-      title: 'Implement user authentication',
-      description: 'Create login and registration pages',
-      dueDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3),
-      status: 'todo',
-      priority: 'high',
-      assignee: this.currentUser.name,
-      project: 'Website Redesign',
-      projectId: '1',
-      tags: ['frontend', 'security'],
-      progress: 0
-    });
-    
-    // Tasks for Mobile App Development
-    tasks.push({
-      id: '103',
-      title: 'Design app icon',
-      description: 'Create multiple design options for the app icon',
-      dueDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1),
-      status: 'todo',
-      priority: 'medium',
-      assignee: this.currentUser.name,
-      project: 'Mobile App Development',
-      projectId: '2',
-      tags: ['design'],
-      progress: 0
-    });
-    
-    tasks.push({
-      id: '104',
-      title: 'Set up Firebase backend',
-      description: 'Configure Firebase for the mobile app',
-      dueDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7),
-      status: 'in-progress',
-      priority: 'high',
-      assignee: this.currentUser.name,
-      project: 'Mobile App Development',
-      projectId: '2',
-      tags: ['backend'],
-      progress: 30
-    });
-    
-    return tasks;
-  }
-
   applyFilters(): void {
     this.filteredTasks = this.allTasks.filter(task => {
       // Filter by status
@@ -168,7 +210,7 @@ export class Tasks implements OnInit {
   }
 
   toggleViewMode(): void {
-    this.viewMode = this.viewMode === 'list' ? 'table' : 'list';
+    this.viewMode = this.viewMode === 'list' ? 'board' : 'list';
   }
 
   getProjectName(projectId: string): string {
@@ -182,6 +224,13 @@ export class Tasks implements OnInit {
     return new Date(dueDate) < today && this.selectedTask?.status !== 'done';
   }
 
+  formatDate(date: Date): string {
+    return new Date(date).toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  }
+
   getTaskProgress(task: any): number {
     if (!task) return 0;
     if (task.status === 'done') return 100;
@@ -193,111 +242,56 @@ export class Tasks implements OnInit {
     
     let newProgress = (task.progress || 0) + change;
     newProgress = Math.max(0, Math.min(100, newProgress));
-    
     task.progress = newProgress;
     
-    // Update status based on progress
-    if (newProgress >= 100) {
+    if (newProgress === 100 && task.status !== 'done') {
       task.status = 'done';
-    } else if (newProgress > 0 && task.status === 'todo') {
+    } else if (newProgress < 100 && task.status === 'done') {
       task.status = 'in-progress';
     }
-    
-    // Update project progress if needed
-    this.updateProjectProgress(task.projectId);
   }
 
-  updateProjectProgress(projectId: string): void {
-    const project = this.assignedProjects.find(p => p.id === projectId);
-    if (!project) return;
-    
-    const projectTasks = this.allTasks.filter(t => t.projectId === projectId);
-    if (projectTasks.length === 0) return;
-    
-    const totalProgress = projectTasks.reduce((sum, task) => sum + this.getTaskProgress(task), 0);
-    project.progress = Math.round(totalProgress / projectTasks.length);
-  }
-
-  updateTaskStatus(status: string): void {
-    if (this.selectedTask) {
-      this.selectedTask.status = status as any;
-      if (status === 'done') {
-        this.selectedTask.progress = 100;
-        this.selectedTask.completionDate = new Date();
-      } else if (status === 'in-progress' && this.selectedTask.progress === 0) {
-        this.selectedTask.progress = 10;
-      }
-      
-      this.updateProjectProgress(this.selectedTask.projectId);
-      this.closeTaskDetails();
-    }
-  }
-
-  getStatusClass(status?: string): string {
-    switch(status) {
-      case 'done':
-        return 'bg-green-100 text-green-800';
-      case 'in-progress':
-        return 'bg-blue-100 text-blue-800';
-      case 'review':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'todo':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  }
-
-  getStatusText(status?: string): string {
-    switch(status) {
-      case 'done':
-        return 'Completed';
-      case 'in-progress':
-        return 'In Progress';
-      case 'review':
-        return 'Pending Review';
-      case 'todo':
-        return 'To Do';
-      default:
-        return status || 'Unknown';
-    }
-  }
-
-  getPriorityClass(priority: string): string {
-    switch(priority) {
-      case 'high':
-        return 'bg-purple-100 text-purple-800';
-      case 'medium':
-        return 'bg-blue-100 text-blue-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  }
-
-  getPriorityText(priority: string): string {
-    return priority.charAt(0).toUpperCase() + priority.slice(1);
-  }
-
-  openTaskDetails(task: Task): void {
-    this.selectedTask = { ...task };
+  viewTaskDetails(task: any): void {
+    this.selectedTask = task;
     this.showTaskModal = true;
   }
 
-  closeTaskDetails(): void {
+  closeTaskModal(): void {
     this.showTaskModal = false;
     this.selectedTask = null;
   }
 
-  openCreateTaskModal(): void {
-    // In a real app, this would open a form to create a new task
-    alert('Create task functionality would open here');
+  editTask(task: any): void {
+    // Implementation for editing task
+    console.log('Edit task:', task);
   }
 
-  openEditTaskModal(): void {
-    // In a real app, this would open a form to edit the task
-    alert('Edit task functionality would open here');
-    this.closeTaskDetails();
+  deleteTask(task: any): void {
+    // Implementation for deleting task
+    console.log('Delete task:', task);
+  }
+
+  updateTaskStatus(task: Task, newStatus: string): void {
+    task.status = newStatus as 'todo' | 'in-progress' | 'review' | 'done';
+    this.taskService.updateTask(task).subscribe();
+  }
+
+  getStatusColor(status: string): string {
+    const colors: { [key: string]: string } = {
+      'todo': 'bg-gray-100 text-gray-800',
+      'in-progress': 'bg-blue-100 text-blue-800',
+      'review': 'bg-yellow-100 text-yellow-800',
+      'done': 'bg-green-100 text-green-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  }
+
+  getPriorityColor(priority: string): string {
+    const colors: { [key: string]: string } = {
+      'low': 'text-green-600',
+      'medium': 'text-yellow-600',
+      'high': 'text-red-600'
+    };
+    return colors[priority] || 'text-gray-600';
   }
 }

@@ -169,6 +169,46 @@ export class Auth {
     return !!this.getToken() && !!this.currentUserSubject.value;
   }
 
+  // Get current user profile from backend
+  getUserProfile(): Observable<User> {
+    return this.http.get<any>(`${this.apiUrl}/users/profile`, { headers: this.getAuthHeaders() }).pipe(
+      map(apiUser => this.mapApiUserToUser(apiUser)),
+      tap(user => {
+        // Update the current user in the BehaviorSubject with fresh data
+        this.currentUserSubject.next(user);
+        // Update stored user data
+        if (this.isBrowser()) {
+          sessionStorage.setItem('currentUser', JSON.stringify(user));
+          localStorage.setItem('currentUser', JSON.stringify(user));
+        }
+      }),
+      catchError(error => {
+        console.error('Failed to fetch user profile:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to fetch user profile'));
+      })
+    );
+  }
+
+  // Update current user profile
+  updateUserProfile(userData: Partial<User>): Observable<User> {
+    return this.http.put<any>(`${this.apiUrl}/users/profile`, userData, { headers: this.getAuthHeaders() }).pipe(
+      map(apiUser => this.mapApiUserToUser(apiUser)),
+      tap(user => {
+        // Update the current user in the BehaviorSubject
+        this.currentUserSubject.next(user);
+        // Update stored user data
+        if (this.isBrowser()) {
+          sessionStorage.setItem('currentUser', JSON.stringify(user));
+          localStorage.setItem('currentUser', JSON.stringify(user));
+        }
+      }),
+      catchError(error => {
+        console.error('Failed to update user profile:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to update user profile'));
+      })
+    );
+  }
+
   // Checks if the current user has any of the specified roles
   hasAnyRole(roles: string[]): boolean {
     const user = this.getCurrentUser();
@@ -258,8 +298,13 @@ export class Auth {
         this.currentUserSubject.next(loggedInUser); // Update the BehaviorSubject
       }),
       catchError(error => {
-        console.error('Login failed:', error);
-        return throwError(() => new Error(error.error?.message || 'Invalid credentials.'));
+        // Suppress console errors that might trigger Vite overlay
+        const errorMessage = error.error?.message || 'Invalid credentials.';
+        // Only log in development mode
+        if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+          console.warn('Login failed:', errorMessage);
+        }
+        return throwError(() => new Error(errorMessage));
       })
     );
   }
@@ -540,7 +585,49 @@ export class Auth {
 
   // Add members to team lead's team
   leadAddTeamMembers(userIds: string[]): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/lead/team/members`, { userIds }, { headers: this.getAuthHeaders() }).pipe(
+    console.log('leadAddTeamMembers called with userIds:', userIds);
+    
+    // EMERGENCY CHECK: Block any array containing "undefined" strings
+    if (userIds.includes('undefined') || userIds.includes("undefined")) {
+      console.error('BLOCKED: Found "undefined" string in userIds array');
+      return throwError(() => new Error('Invalid user ID detected. Please refresh the page and try again.'));
+    }
+    
+    // Filter out invalid IDs before sending to backend
+    const validUserIds = userIds.filter(id => {
+      console.log('Validating ID:', id, 'type:', typeof id);
+      
+      // Convert to string first to handle any type issues
+      const idStr = String(id || '').trim();
+      console.log('ID as string:', idStr);
+      
+      if (!idStr || 
+          idStr === '' || 
+          idStr === 'undefined' || 
+          idStr === 'null' ||
+          idStr === 'NaN') {
+        console.warn('Filtering out invalid user ID:', id, 'converted:', idStr);
+        return false;
+      }
+      // Check if it's a valid ObjectId format (24 character hex string)
+      if (!/^[0-9a-fA-F]{24}$/.test(idStr)) {
+        console.warn('Filtering out invalid ObjectId format:', id, 'converted:', idStr);
+        return false;
+      }
+      console.log('ID passed validation:', idStr);
+      return true;
+    });
+
+    console.log('Valid user IDs after filtering:', validUserIds);
+
+    if (validUserIds.length === 0) {
+      console.error('No valid user IDs after filtering');
+      return throwError(() => new Error('No valid user IDs provided'));
+    }
+
+    console.log('Sending valid user IDs to backend:', validUserIds);
+    
+    return this.http.post<any>(`${this.apiUrl}/lead/team/members`, { userIds: validUserIds }, { headers: this.getAuthHeaders() }).pipe(
       tap(response => {
         // Trigger refresh for teams data
         this.triggerTeamsRefresh();

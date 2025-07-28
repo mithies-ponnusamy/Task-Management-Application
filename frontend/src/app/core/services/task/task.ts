@@ -34,16 +34,32 @@ export class TaskService {
   }
 
   getTasks(): Observable<Task[]> {
-    // Make HTTP GET request to backend
+    // Make HTTP GET request to backend with fallback to empty array
     return this.http.get<Task[]>(this.apiUrl, { headers: this.getAuthHeaders() }).pipe(
-      catchError(this.handleError<Task[]>('getTasks', []))
+      catchError((error) => {
+        console.warn('Failed to fetch tasks from backend, returning empty array:', error);
+        return of([]); // Return empty array instead of throwing error
+      })
+    );
+  }
+
+  // Get tasks assigned to the current user
+  getMyTasks(): Observable<Task[]> {
+    return this.http.get<Task[]>('/api/users/my-tasks', { headers: this.getAuthHeaders() }).pipe(
+      catchError((error) => {
+        console.warn('Failed to fetch user tasks from backend, returning empty array:', error);
+        return of([]); // Return empty array instead of throwing error
+      })
     );
   }
 
   getTasksByProject(projectId: string): Observable<Task[]> {
-    // Assuming backend supports filtering by project ID
+    // Assuming backend supports filtering by project ID with fallback
     return this.http.get<Task[]>(`${this.apiUrl}?projectId=${projectId}`, { headers: this.getAuthHeaders() }).pipe(
-      catchError(this.handleError<Task[]>('getTasksByProject', []))
+      catchError((error) => {
+        console.warn('Failed to fetch tasks by project from backend, returning empty array:', error);
+        return of([]); // Return empty array instead of throwing error
+      })
     );
   }
 
@@ -85,7 +101,10 @@ export class TaskService {
     // This now truly needs a backend call. Assuming backend can filter by assignee name/ID
     // You might need to adjust your backend's getTasks to support this query parameter
     return this.http.get<Task[]>(`${this.apiUrl}?assignee=${assigneeName}`, { headers: this.getAuthHeaders() }).pipe(
-        catchError(this.handleError<Task[]>('getTasksByAssignee', []))
+      catchError((error) => {
+        console.warn('Failed to fetch tasks by assignee from backend, returning empty array:', error);
+        return of([]); // Return empty array instead of throwing error
+      })
     );
   }
 

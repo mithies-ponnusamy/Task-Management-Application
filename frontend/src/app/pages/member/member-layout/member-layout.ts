@@ -4,6 +4,7 @@ import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
 import { UserService } from '../../../core/services/user/user';
+import { Auth } from '../../../core/services/auth/auth';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Sidebar } from '../sidebar/sidebar';
@@ -25,29 +26,50 @@ export class MemberLayout implements OnInit, OnDestroy {
   isMobileSidebarOpen: boolean = false;
   isUserMenuOpen: boolean = false;
   private routerSubscription!: Subscription;
+  private profileSubscription: Subscription | null = null;
   logoUrl: string = 'public/logo/logo-black.png'; 
+  loading: boolean = true;
 
   constructor(
     private userService: UserService,
+    private authService: Auth,
     private router: Router,
   ) {}
 
   ngOnInit(): void {
     // Check if user is authenticated
-    const userData = SessionStorage.getItem('currentUser');
-    if (!userData) {
+    if (!this.authService.isAuthenticated()) {
       this.router.navigate(['/login']);
       return;
     }
 
-    // Initialize user data
-    this.currentUser = this.userService.getUsers().find(user => user.id === '2') ?? null;
+    // Get current user from auth service
+    this.currentUser = this.authService.getCurrentUser();
+    
+    // Fetch fresh user data from backend
+    this.loadUserProfile();
     
     this.routerSubscription = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {
         // No need to track active page here as sidebar handles it
       });
+  }
+
+  private loadUserProfile(): void {
+    this.loading = true;
+    this.profileSubscription = this.authService.getUserProfile().subscribe({
+      next: (user) => {
+        this.currentUser = user;
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Error loading user profile:', error);
+        this.loading = false;
+        // If profile fetch fails, redirect to login
+        this.router.navigate(['/login']);
+      }
+    });
   }
 
   toggleMobileSidebar(): void {
@@ -63,13 +85,16 @@ export class MemberLayout implements OnInit, OnDestroy {
   }
 
   logout(): void {
-    SessionStorage.clear();
+    this.authService.logout();
     this.router.navigate(['/login']);
   }
 
   ngOnDestroy(): void {
     if (this.routerSubscription) {
       this.routerSubscription.unsubscribe();
+    }
+    if (this.profileSubscription) {
+      this.profileSubscription.unsubscribe();
     }
   }
 }

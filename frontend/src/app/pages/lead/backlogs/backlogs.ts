@@ -3,7 +3,7 @@ import { CommonModule, TitleCasePipe } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { Project, Sprint, Task, User } from '../../../model/user.model';
-import { TaskService } from '../../../core/services/task/task';
+import { Auth } from '../../../core/services/auth/auth';
 import { ProjectService } from '../../../core/services/project/project';
 import { UserService } from '../../../core/services/user/user';
 import { LocalStorageService } from '../../../core/services/local-storage/local-storage';
@@ -36,6 +36,7 @@ export class Backlogs implements OnInit, OnDestroy {
   isViewModalOpen = false;
   isEditModalOpen = false;
   currentTask: Task | null = null;
+  currentSprint: Sprint | null = null;
 
   // Filters
   filters = {
@@ -49,7 +50,7 @@ export class Backlogs implements OnInit, OnDestroy {
   private taskSubscription!: Subscription;
 
   constructor(
-    private taskService: TaskService,
+    private authService: Auth,
     private projectService: ProjectService,
     private userService: UserService,
     private localStorage: LocalStorageService,
@@ -59,11 +60,9 @@ export class Backlogs implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadInitialData();
-    this.taskSubscription = this.taskService.tasksUpdated$.subscribe(() => {
-      this.taskService.getTasks().subscribe(tasks => {
+    this.taskSubscription = this.authService.leadGetTasks().subscribe((tasks: Task[]) => {
         this.allTasks = tasks;
         this.applyFilters();
-      });
     });
   }
 
@@ -74,52 +73,136 @@ export class Backlogs implements OnInit, OnDestroy {
   }
 
   loadInitialData(): void {
-    const currentUser = this.userService.getCurrentUser();
-    if (currentUser?.team) {
-      this.projects = this.projectService.getProjectsByTeam(currentUser.team);
-      this.teamMembers = this.userService.getTeamMembers(currentUser.team);
-      const projectIds = this.projects.map(p => p.id);
-      
-      this.sprints = this.localStorage.getSprints<Sprint[]>()?.filter(s => projectIds.includes(s.projectId)) || [];
-      this.taskService.getTasks().subscribe(tasks => {
-        this.allTasks = tasks.filter(t => projectIds.includes(t.projectId));
+    console.log('=== Backlogs: Loading initial data ===');
+    
+    // Load projects using the same method as create-task
+    this.authService.leadGetProjects().subscribe({
+      next: (projects: any[]) => {
+        console.log('Backlogs: Raw projects received:', projects);
+        // Process projects to ensure consistent ID format
+        this.projects = projects.map(project => ({
+          ...project,
+          id: project._id || project.id
+        }));
+        console.log('Backlogs: Processed projects with details:', this.projects.map(p => ({ 
+          id: p.id, 
+          _id: (p as any)._id, 
+          name: p.name,
+          originalId: (p as any).originalId
+        })));
+        this.loadSprintsAndTeam();
+      },
+      error: (error) => {
+        console.error('Backlogs: Error loading projects:', error);
+        this.projects = [];
+        this.loadSprintsAndTeam();
+      }
+    });
+  }
+
+  loadSprintsAndTeam(): void {
+    // Load team members
+    this.authService.leadGetTeam().subscribe({
+      next: (teamData: any) => {
+        console.log('Backlogs: Team loaded:', teamData.members?.length || 0, 'members');
+        this.teamMembers = teamData.members || [];
+      },
+      error: (error: any) => {
+        console.error('Backlogs: Error loading team members:', error);
+        this.teamMembers = [];
+      }
+    });
+    
+    // Fetch sprints from backend for projects assigned to the team lead
+    this.authService.leadGetSprints().subscribe({
+      next: (sprints: Sprint[]) => {
+        console.log('Backlogs: Raw sprints received:', sprints.length);
+        console.log('Backlogs: Sprint data sample:', sprints.map(s => ({ 
+          name: s.name, 
+          project: s.project, 
+          _id: (s as any)._id,
+          id: s.id 
+        })));
+        
+        // Process sprints to ensure projectId is available for frontend use
+        this.sprints = sprints.map(sprint => {
+          const processed = {
+            ...sprint,
+            id: (sprint as any)._id || sprint.id,
+            projectId: typeof sprint.project === 'string' 
+              ? sprint.project 
+              : (sprint.project as any)?._id || (sprint.project as any)?.id
+          };
+          console.log('Backlogs: Processed sprint:', {
+            name: processed.name, 
+            sprintId: processed.id,
+            projectId: processed.projectId,
+            originalProject: sprint.project
+          });
+          return processed;
+        }).filter(sprint => {
+          // Filter out sprints without valid project references
+          const hasValidProject = sprint.projectId && sprint.projectId !== 'undefined';
+          if (!hasValidProject) {
+            console.warn('Backlogs: Filtering out sprint without valid project:', sprint.name);
+          }
+          return hasValidProject;
+        });
+        
+        console.log('Backlogs: Total valid sprints processed:', this.sprints.length);
         this.onProjectFilterChange(); // Initial filter application
-      });
-    }
+      },
+      error: (error) => {
+        console.error('Backlogs: Error loading sprints:', error);
+        this.sprints = [];
+        this.onProjectFilterChange();
+      }
+    });
+
+    // Also load tasks for reference
+    this.authService.leadGetTasks().subscribe({
+      next: (tasks: Task[]) => {
+        console.log('Backlogs: Tasks loaded:', tasks.length);
+        this.allTasks = tasks;
+        this.applyFilters();
+      },
+      error: (error) => {
+        console.error('Backlogs: Error loading tasks:', error);
+        this.allTasks = [];
+        this.applyFilters();
+      }
+    });
   }
   
   onProjectFilterChange(): void {
+      console.log('Backlogs: Project filter changed to:', this.filters.projectId);
+      console.log('Backlogs: Available projects:', this.projects.map(p => ({ id: p.id, name: p.name })));
+      console.log('Backlogs: Available sprints:', this.sprints.map(s => ({ name: s.name, projectId: s.projectId })));
+      
       if (this.filters.projectId === 'all') {
           const projectIds = this.projects.map(p => p.id);
-          this.filteredSprints = this.sprints.filter(s => projectIds.includes(s.projectId));
+          this.filteredSprints = this.sprints.filter(s => s.projectId && projectIds.includes(s.projectId));
+          console.log('Backlogs: Showing sprints for all projects, filtered count:', this.filteredSprints.length);
       } else {
           this.filteredSprints = this.sprints.filter(s => s.projectId === this.filters.projectId);
+          console.log('Backlogs: Showing sprints for project', this.filters.projectId, ', filtered count:', this.filteredSprints.length);
       }
       this.filters.sprintId = 'all'; // Reset sprint filter
       this.applyFilters();
   }
 
   applyFilters(): void {
-    let tasksToFilter = [...this.allTasks];
-    const { projectId, sprintId, assigneeId, status, query } = this.filters;
+    let sprintsToFilter = [...this.sprints];
+    const { projectId, query } = this.filters;
     const lowerCaseQuery = query.toLowerCase();
 
-    this.filteredTasks = tasksToFilter.filter(task => {
-      const matchesProject = projectId === 'all' || task.projectId === projectId;
-      const matchesAssignee = assigneeId === 'all' || task.assignee === assigneeId;
-      const matchesStatus = status === 'all' || task.status === status;
-      const matchesQuery = !query || task.title.toLowerCase().includes(lowerCaseQuery);
+    this.filteredSprints = sprintsToFilter.filter(sprint => {
+      const matchesProject = projectId === 'all' || sprint.projectId === projectId;
+      const matchesQuery = !query || 
+        sprint.name.toLowerCase().includes(lowerCaseQuery) ||
+        (sprint.description && sprint.description.toLowerCase().includes(lowerCaseQuery));
       
-      let matchesSprint = true;
-      if (sprintId === 'all') {
-        matchesSprint = true; // Show all tasks regardless of sprint
-      } else if (sprintId === 'none') {
-        matchesSprint = !task.sprintId; // Show only tasks in the product backlog
-      } else {
-        matchesSprint = task.sprintId === sprintId; // Show tasks for a specific sprint
-      }
-      
-      return matchesProject && matchesAssignee && matchesStatus && matchesQuery && matchesSprint;
+      return matchesProject && matchesQuery;
     });
   }
 
@@ -147,7 +230,15 @@ export class Backlogs implements OnInit, OnDestroy {
   }
   
   deleteTask(taskId: string): void {
-    this.taskService.deleteTask(taskId);
+    this.authService.leadDeleteTask(taskId).subscribe({
+      next: () => {
+        console.log('Task deleted successfully');
+        this.loadInitialData(); // Reload data after deletion
+      },
+      error: (error) => {
+        console.error('Error deleting task:', error);
+      }
+    });
     this.closeModals();
   }
   
@@ -162,9 +253,25 @@ export class Backlogs implements OnInit, OnDestroy {
 
   saveChanges(): void {
     if (this.currentTask) {
-        this.taskService.updateTask(this.currentTask);
+        this.authService.leadUpdateTask(this.currentTask.id, this.currentTask).subscribe({
+          next: () => {
+            console.log('Task updated successfully');
+            this.loadInitialData(); // Reload data after update
+          },
+          error: (error) => {
+            console.error('Error updating task:', error);
+          }
+        });
         this.closeModals();
     }
+  }
+
+  private loadTasks(): void {
+    const projectIds = this.projects.map(p => p.id);
+    this.authService.leadGetTasks().subscribe((tasks: Task[]) => {
+      this.allTasks = tasks.filter((t: Task) => projectIds.includes(t.projectId));
+      this.onProjectFilterChange(); // Apply current filters
+    });
   }
 
   // --- Modal Control ---
@@ -177,11 +284,89 @@ export class Backlogs implements OnInit, OnDestroy {
       this.isViewModalOpen = false;
       this.isEditModalOpen = false;
       this.currentTask = null;
+      this.currentSprint = null;
   }
 
+  // Sprint-focused methods for new table structure
+  viewSprintDetails(sprint: Sprint): void {
+    this.currentSprint = { ...sprint };
+    this.isViewModalOpen = true;
+  }
+
+  viewSprintTasks(sprint: Sprint): void {
+    // Navigation to tasks page with sprint filter
+    console.log('Viewing sprint tasks:', sprint);
+  }
+
+  getProjectById(projectId: string | undefined): Project | undefined {
+    if (!projectId) return undefined;
+    return this.projects.find(p => p.id === projectId);
+  }
+
+  getProjectStatusClass(project: Project | undefined): string {
+    if (!project) return 'bg-gray-100 text-gray-800';
+    switch (project.status) {
+      case 'in-progress': return 'bg-blue-100 text-blue-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'on-hold': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  getSprintDuration(sprint: Sprint): number {
+    const start = new Date(sprint.startDate);
+    const end = new Date(sprint.endDate);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  getSprintStatusClass(status: string): string {
+    switch (status) {
+      case 'upcoming': return 'bg-gray-100 text-gray-800';
+      case 'active': return 'bg-blue-100 text-blue-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  getSprintTaskProgress(sprintId: string): number {
+    const sprintTasks = this.allTasks.filter(task => task.sprintId === sprintId);
+    if (sprintTasks.length === 0) return 0;
+    const completedTasks = sprintTasks.filter(task => task.status === 'done');
+    return Math.round((completedTasks.length / sprintTasks.length) * 100);
+  }
+
+  getSprintTaskCount(sprintId: string): number {
+    return this.allTasks.filter(task => task.sprintId === sprintId).length;
+  }
+
+  getTeamName(teamId: string | undefined): string {
+    // For now, return the current user's team or fetch team data
+    return teamId || 'Current Team';
+  }
+
+  getTeamLeadName(teamId: string | undefined): string {
+    // For now, return current user name or fetch team lead
+    const currentUser = this.userService.getCurrentUser();
+    return currentUser?.name || 'Team Lead';
+  }
 
   // Utility methods
-  getProjectName = (id: string) => this.projects.find(p => p.id === id)?.name || 'N/A';
+  getProjectName = (id: string | undefined) => {
+    if (!id) return 'N/A';
+    
+    const project = this.projects.find(p => p.id === id || (p as any)._id === id);
+    const name = project?.name || 'N/A';
+    
+    // Debug logging for troubleshooting
+    if (name === 'N/A') {
+      console.warn('Backlogs: Could not find project for ID:', id);
+      console.warn('Available projects:', this.projects.map(p => ({ id: p.id, _id: (p as any)._id, name: p.name })));
+    }
+    
+    return name;
+  };
   getSprintName = (id: string | undefined) => id ? (this.sprints.find(s => s.id === id)?.name || 'N/A') : 'Backlog';
   getAssigneeName = (id: string | undefined) => id ? (this.teamMembers.find(m => m.id === id)?.name || 'Unassigned') : 'Unassigned';
   getPriorityClass = (p: string) => ({ high: 'text-red-600', medium: 'text-yellow-600', low: 'text-green-600' }[p] || 'text-gray-500');

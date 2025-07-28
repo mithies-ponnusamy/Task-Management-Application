@@ -20,7 +20,8 @@
                 "glob": "**/*",
                 "input": "src/public",
                 "output": "/public"
-              }
+              },
+              "src/vite-error-suppressor.js"
             ],
             "styles": [
               "src/styles.css"
@@ -65,7 +66,11 @@
           "builder": "@angular/build:dev-server",
           "options": {
             "buildTarget": "Genflow-Task-Management:build",
-            "proxyConfig": "proxy.conf.json"
+            "proxyConfig": "proxy.conf.json",
+            "hmr": false,
+            "liveReload": false,
+            "watch": false,
+            "poll": 2000
           },
           "configurations": {
             "production": {

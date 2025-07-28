@@ -1,51 +1,267 @@
 <div class="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-md">
-  <h1 class="text-3xl font-bold text-indigo-800 mb-6">Your Profile</h1>
-  
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-    <div class="flex flex-col items-center">
-      <div class="h-40 w-40 rounded-full bg-indigo-100 flex items-center justify-center shadow-lg mb-4 border-4 border-white">
-        <i class="fas fa-user text-indigo-600 text-6xl"></i>
-      </div>
-      <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
-        Change Photo
+  <!-- Loading State -->
+  <div *ngIf="loading" class="flex justify-center items-center h-64">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!loading">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold text-indigo-800">Your Profile</h1>
+      <button 
+        (click)="toggleEditMode()"
+        [disabled]="saving"
+        class="px-4 py-2 rounded-lg transition-colors shadow-md"
+        [ngClass]="editMode ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-indigo-600 text-white hover:bg-indigo-700'">
+        <i class="fas" [ngClass]="editMode ? 'fa-times' : 'fa-edit'"></i>
+        {{ editMode ? 'Cancel' : 'Edit Profile' }}
       </button>
     </div>
-
-    <div class="md:col-span-2">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label class="block text-gray-600 mb-1">Name</label>
-          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
-            {{ currentUser?.name || 'Not available' }}
-          </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div class="flex flex-col items-center">
+        <div class="h-40 w-40 rounded-full bg-indigo-100 flex items-center justify-center shadow-lg mb-4 border-4 border-white overflow-hidden">
+          <img *ngIf="currentUser?.profileImg; else defaultAvatar" 
+               [src]="currentUser?.profileImg" 
+               alt="Profile" 
+               class="w-full h-full object-cover">
+          <ng-template #defaultAvatar>
+            <i class="fas fa-user text-indigo-600 text-6xl"></i>
+          </ng-template>
         </div>
-        
-        <div>
-          <label class="block text-gray-600 mb-1">Email</label>
-          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
-            {{ currentUser?.email || 'Not available' }}
-          </div>
-        </div>
-        
-        <div>
-          <label class="block text-gray-600 mb-1">Role</label>
-          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
-            {{ currentUser?.role || 'Not available' }}
-          </div>
-        </div>
-        
-        <div>
-          <label class="block text-gray-600 mb-1">Join Date</label>
-          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
-            {{ currentUser?.joinDate || 'Not available' }}
-          </div>
-        </div>
-      </div>
-      
-      <div class="mt-6">
-        <button class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
-          Edit Profile
+        <button *ngIf="editMode" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
+          <i class="fas fa-camera mr-2"></i>Change Photo
         </button>
+      </div>
+
+      <div class="md:col-span-2">
+        <form *ngIf="editMode" (ngSubmit)="saveProfile()" #profileForm="ngForm">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-gray-600 mb-1">Name *</label>
+              <input type="text" 
+                     [(ngModel)]="editedUser.name" 
+                     name="name"
+                     required
+                     class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            
+            <div>
+              <label class="block text-gray-600 mb-1">Username</label>
+              <input type="text" 
+                     [(ngModel)]="editedUser.username" 
+                     name="username"
+                     class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            
+            <div>
+              <label class="block text-gray-600 mb-1">Email</label>
+              <div class="p-3 bg-gray-100 rounded-lg border border-gray-200 text-gray-600">
+                {{ currentUser?.email || 'Not available' }} (Cannot be changed)
+              </div>
+            </div>
+            
+            <div>
+              <label class="block text-gray-600 mb-1">Phone</label>
+              <input type="tel" 
+                     [(ngModel)]="editedUser.phone" 
+                     name="phone"
+                     class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            
+            <div>
+              <label class="block text-gray-600 mb-1">Gender</label>
+              <select [(ngModel)]="editedUser.gender" 
+                      name="gender"
+                      class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-gray-600 mb-1">Date of Birth</label>
+              <input type="date" 
+                     [(ngModel)]="editedUser.dob" 
+                     name="dob"
+                     class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            
+            <div>
+              <label class="block text-gray-600 mb-1">Department</label>
+              <input type="text" 
+                     [(ngModel)]="editedUser.department" 
+                     name="department"
+                     class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            
+            <div>
+              <label class="block text-gray-600 mb-1">Employee Type</label>
+              <select [(ngModel)]="editedUser.employeeType" 
+                      name="employeeType"
+                      class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Select Type</option>
+                <option value="Full-time">Full-time</option>
+                <option value="Part-time">Part-time</option>
+                <option value="Contract">Contract</option>
+                <option value="Intern">Intern</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-gray-600 mb-1">Location</label>
+              <input type="text" 
+                     [(ngModel)]="editedUser.location" 
+                     name="location"
+                     class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            
+            <div>
+              <label class="block text-gray-600 mb-1">Role</label>
+              <div class="p-3 bg-gray-100 rounded-lg border border-gray-200 text-gray-600">
+                {{ currentUser?.role || 'Not available' }} (Cannot be changed)
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-6">
+            <label class="block text-gray-600 mb-1">Address</label>
+            <textarea [(ngModel)]="editedUser.address" 
+                      name="address"
+                      rows="3"
+                      class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+          </div>
+          
+          <div class="mt-6">
+            <label class="block text-gray-600 mb-1">About</label>
+            <textarea [(ngModel)]="editedUser.about" 
+                      name="about"
+                      rows="4"
+                      placeholder="Tell us about yourself..."
+                      class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+          </div>
+          
+          <div class="mt-6 flex gap-4">
+            <button type="submit" 
+                    [disabled]="!profileForm.valid || saving"
+                    class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+              <i class="fas fa-save mr-2"></i>
+              {{ saving ? 'Saving...' : 'Save Changes' }}
+            </button>
+            <button type="button" 
+                    (click)="cancelEdit()"
+                    [disabled]="saving"
+                    class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+              <i class="fas fa-times mr-2"></i>Cancel
+            </button>
+          </div>
+        </form>
+
+        <!-- View Mode -->
+        <div *ngIf="!editMode" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-gray-600 mb-1">Name</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.name || 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Username</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.username || 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Email</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.email || 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Phone</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.phone || 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Role</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.role || 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Department</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.department || 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Gender</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.gender || 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Employee Type</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.employeeType || 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Date of Birth</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.dob || 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Location</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.location || 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Join Date</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.joinDate ? (currentUser?.joinDate | date) : 'Not available' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-600 mb-1">Employee ID</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 font-medium">
+              {{ currentUser?.numericalId || 'Not available' }}
+            </div>
+          </div>
+        </div>
+        
+        <!-- Address and About - View Mode -->
+        <div *ngIf="!editMode" class="mt-6">
+          <div *ngIf="currentUser?.address" class="mb-6">
+            <label class="block text-gray-600 mb-1">Address</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800">
+              {{ currentUser?.address }}
+            </div>
+          </div>
+          
+          <div *ngIf="currentUser?.about" class="mb-6">
+            <label class="block text-gray-600 mb-1">About</label>
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800">
+              {{ currentUser?.about }}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

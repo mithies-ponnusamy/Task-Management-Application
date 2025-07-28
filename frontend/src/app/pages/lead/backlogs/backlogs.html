@@ -1,20 +1,27 @@
 <div class="max-w-7xl mx-auto py-6">
-  <div class="mb-6 flex justify-between items-center">
+  <div class="mb-6">
     <div>
         <h1 class="text-3xl font-bold text-gray-900">Backlogs</h1>
-        <p class="mt-1 text-sm text-gray-500">View, filter, and manage all tasks assigned to your team.</p>
+        <p class="mt-1 text-sm text-gray-500">View and monitor sprints created by admin for your team's assigned projects.</p>
     </div>
-    <button (click)="openCreateTaskModal()" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
-        <i class="fas fa-plus"></i> Create Task
-    </button>
   </div>
 
   <div class="bg-white shadow rounded-lg mb-6 p-4">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-      <div class="lg:col-span-2"><label class="block text-sm font-medium text-gray-700">Search</label><input type="text" [(ngModel)]="filters.query" (input)="applyFilters()" placeholder="Search task titles..." class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"></div>
-      <div><label class="block text-sm font-medium text-gray-700">Project</label><select [(ngModel)]="filters.projectId" (change)="onProjectFilterChange()" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option value="all">All Projects</option><option *ngFor="let p of projects" [value]="p.id">{{p.name}}</option></select></div>
-      <div><label class="block text-sm font-medium text-gray-700">Sprint / Backlog</label><select [(ngModel)]="filters.sprintId" (change)="applyFilters()" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option value="all">All Sprints</option><option value="none">Product Backlog</option><option *ngFor="let s of filteredSprints" [value]="s.id">{{s.name}}</option></select></div>
-      <div><label class="block text-sm font-medium text-gray-700">Status</label><select [(ngModel)]="filters.status" (change)="applyFilters()" class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2"><option value="all">All Statuses</option><option value="todo">To Do</option><option value="in-progress">In Progress</option><option value="review">Review</option><option value="done">Done</option></select></div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+      <div class="md:col-span-2">
+        <label class="block text-sm font-medium text-gray-700">Search Sprints</label>
+        <input type="text" [(ngModel)]="filters.query" (input)="applyFilters()" 
+               placeholder="Search sprint names or descriptions..." 
+               class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Project</label>
+        <select [(ngModel)]="filters.projectId" (change)="onProjectFilterChange()" 
+                class="mt-1 w-full border border-gray-300 rounded-md shadow-sm p-2">
+          <option value="all">All Projects</option>
+          <option *ngFor="let p of projects" [value]="p.id">{{p.name}}</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -23,27 +30,139 @@
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th class="table-header">Task</th><th class="table-header">Assignee</th><th class="table-header">Sprint</th><th class="table-header">Due Date</th><th class="table-header">Status & Priority</th><th class="table-header text-right">Actions</th>
+            <th class="table-header">Sprint Name</th>
+            <th class="table-header">Project</th>
+            <th class="table-header">Duration</th>
+            <th class="table-header">Status</th>
+            <th class="table-header">Tasks Progress</th>
+            <th class="table-header">Team Assignment</th>
+            <th class="table-header text-right">Actions</th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr *ngFor="let task of filteredTasks" class="hover:bg-gray-50">
-            <td class="px-6 py-4"><p class="text-sm font-medium text-gray-900">{{task.title}}</p><p class="text-xs text-gray-500">{{getProjectName(task.projectId)}}</p></td>
-            <td class="px-6 py-4 text-sm">{{getAssigneeName(task.assigneeId)}}</td>
-            <td class="px-6 py-4 text-sm">{{getSprintName(task.sprintId)}}</td>
-            <td class="px-6 py-4 text-sm">{{task.dueDate | date:'MMM d, y'}}</td>
-            <td class="px-6 py-4"><div class="flex items-center gap-2"><span class="px-2 py-1 text-xs font-semibold rounded-full" [ngClass]="getStatusClass(task.status)">{{task.status | titlecase}}</span><i class="fas fa-circle text-xs" [ngClass]="getPriorityClass(task.priority)" [title]="task.priority | titlecase"></i></div></td>
+          <tr *ngFor="let sprint of filteredSprints" class="hover:bg-gray-50">
+            <td class="px-6 py-4">
+              <p class="text-sm font-medium text-gray-900">{{sprint.name}}</p>
+              <p class="text-xs text-gray-500">{{sprint.description}}</p>
+            </td>
+            <td class="px-6 py-4 text-sm">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" [ngClass]="getProjectStatusClass(getProjectById(sprint.projectId!))">
+                {{getProjectName(sprint.projectId!)}}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-sm">
+              <div class="text-gray-900">{{sprint.startDate | date:'MMM d'}} - {{sprint.endDate | date:'MMM d, y'}}</div>
+              <div class="text-xs text-gray-500">{{getSprintDuration(sprint)}} days</div>
+            </td>
+            <td class="px-6 py-4">
+              <span class="px-2 py-1 text-xs font-semibold rounded-full" [ngClass]="getSprintStatusClass(sprint.status)">
+                {{sprint.status | titlecase}}
+              </span>
+            </td>
+            <td class="px-6 py-4">
+              <div class="flex items-center">
+                <div class="w-full bg-gray-200 rounded-full h-2 mr-2">
+                  <div class="bg-blue-600 h-2 rounded-full" [style.width.%]="getSprintTaskProgress(sprint.id)"></div>
+                </div>
+                <span class="text-xs text-gray-600">{{getSprintTaskCount(sprint.id)}} tasks</span>
+              </div>
+            </td>
+            <td class="px-6 py-4 text-sm">
+              <div class="text-gray-900">{{getTeamName(sprint.teamId)}}</div>
+              <div class="text-xs text-gray-500">Lead: {{getTeamLeadName(sprint.teamId)}}</div>
+            </td>
             <td class="px-6 py-4 text-right">
                 <div class="flex items-center justify-end space-x-3 text-gray-500">
-                    <button (click)="viewTask(task)" title="View Details" class="hover:text-blue-600"><i class="fas fa-eye"></i></button>
-                    <button (click)="editTask(task)" title="Edit Task" class="hover:text-green-600"><i class="fas fa-pencil-alt"></i></button>
-                    <button (click)="confirmDelete(task.id)" title="Delete Task" class="hover:text-red-600"><i class="fas fa-trash-alt"></i></button>
+                    <button (click)="viewSprintDetails(sprint)" title="View Sprint Details" class="hover:text-blue-600">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button (click)="viewSprintTasks(sprint)" title="View Sprint Tasks" class="hover:text-green-600">
+                      <i class="fas fa-tasks"></i>
+                    </button>
                 </div>
             </td>
           </tr>
-          <tr *ngIf="filteredTasks.length === 0"><td colspan="6" class="text-center py-10 text-gray-500">No tasks match your filters.</td></tr>
+          <tr *ngIf="filteredSprints.length === 0">
+            <td colspan="7" class="text-center py-10 text-gray-500">
+              No sprints assigned to your team's projects.
+            </td>
+          </tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- Sprint Details Modal -->
+  <div *ngIf="isViewModalOpen && currentSprint" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex justify-between items-start mb-4">
+          <h3 class="text-lg font-medium text-gray-900">Sprint Details</h3>
+          <button (click)="closeModals()" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Sprint Name</label>
+            <p class="mt-1 text-sm text-gray-900">{{currentSprint.name}}</p>
+          </div>
+          
+          <div *ngIf="currentSprint.description">
+            <label class="block text-sm font-medium text-gray-700">Description</label>
+            <p class="mt-1 text-sm text-gray-900">{{currentSprint.description}}</p>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Project</label>
+              <p class="mt-1 text-sm text-gray-900">{{getProjectName(currentSprint.projectId!)}}</p>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Status</label>
+              <span class="mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full" [ngClass]="getSprintStatusClass(currentSprint.status)">
+                {{currentSprint.status | titlecase}}
+              </span>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Start Date</label>
+              <p class="mt-1 text-sm text-gray-900">{{currentSprint.startDate | date:'fullDate'}}</p>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700">End Date</label>
+              <p class="mt-1 text-sm text-gray-900">{{currentSprint.endDate | date:'fullDate'}}</p>
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Duration</label>
+            <p class="mt-1 text-sm text-gray-900">{{getSprintDuration(currentSprint)}} days</p>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Task Progress</label>
+            <div class="mt-1 flex items-center">
+              <div class="w-full bg-gray-200 rounded-full h-2 mr-3">
+                <div class="bg-blue-600 h-2 rounded-full" [style.width.%]="getSprintTaskProgress(currentSprint.id)"></div>
+              </div>
+              <span class="text-sm text-gray-600">{{getSprintTaskProgress(currentSprint.id)}}%</span>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">{{getSprintTaskCount(currentSprint.id)}} total tasks</p>
+          </div>
+        </div>
+        
+        <div class="mt-6 flex justify-end">
+          <button (click)="closeModals()" class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>

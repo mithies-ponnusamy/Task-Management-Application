@@ -163,4 +163,71 @@ const getUserProfile = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = { registerUser, loginUser, getUserProfile };
+// @desc    Update current user profile
+// @route   PUT /api/users/profile
+// @access  Private
+const updateUserProfile = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+        res.status(404);
+        throw new Error('User not found');
+    }
+
+    // Update only provided fields
+    const {
+        username,
+        name,
+        phone,
+        gender,
+        dob,
+        department,
+        employeeType,
+        location,
+        address,
+        about,
+        profileImg
+    } = req.body;
+
+    // Update fields if provided
+    if (username) user.username = username;
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    if (gender) user.gender = gender;
+    if (dob) user.dob = dob;
+    if (department) user.department = department;
+    if (employeeType) user.employeeType = employeeType;
+    if (location) user.location = location;
+    if (address) user.address = address;
+    if (about) user.about = about;
+    if (profileImg) user.profileImg = profileImg;
+
+    const updatedUser = await user.save();
+
+    res.json({
+        _id: updatedUser._id,
+        numericalId: updatedUser.numericalId,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+        gender: updatedUser.gender,
+        dob: updatedUser.dob,
+        department: updatedUser.department,
+        team: updatedUser.team ? updatedUser.team.toString() : null,
+        status: updatedUser.status,
+        employeeType: updatedUser.employeeType,
+        location: updatedUser.location,
+        joinDate: updatedUser.joinDate,
+        lastActive: updatedUser.lastActive,
+        address: updatedUser.address,
+        about: updatedUser.about,
+        profileImg: updatedUser.profileImg,
+        notifications: updatedUser.notifications,
+        performance: updatedUser.performance,
+        completionRate: updatedUser.completionRate,
+    });
+});
+
+module.exports = { registerUser, loginUser, getUserProfile, updateUserProfile };

@@ -1,11 +1,6 @@
 const mongoose = require('mongoose');
 
 const TaskSchema = new mongoose.Schema({
-    user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
     title: {
         type: String,
         required: [true, 'Please add a title for the task'],
@@ -17,10 +12,25 @@ const TaskSchema = new mongoose.Schema({
         trim: true,
         default: ''
     },
+    assignee: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    project: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Project',
+        required: true
+    },
+    sprint: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Sprint',
+        default: null
+    },
     status: {
         type: String,
-        enum: ['pending', 'in-progress', 'done'],
-        default: 'pending'
+        enum: ['todo', 'in-progress', 'done', 'pending'],
+        default: 'todo'
     },
     priority: {
         type: String,
@@ -29,13 +39,54 @@ const TaskSchema = new mongoose.Schema({
     },
     dueDate: {
         type: Date,
-        required: [true, 'Please add a due date for the task']
+        default: null
     },
+    storyPoints: {
+        type: Number,
+        min: 1,
+        max: 13,
+        default: 1
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    comments: [{
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        },
+        text: {
+            type: String,
+            required: true
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+    attachments: [{
+        name: String,
+        url: String,
+        uploadedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        uploadedAt: {
+            type: Date,
+            default: Date.now
+        }
+    }]
 }, {
     timestamps: true // Adds createdAt and updatedAt automatically
 });
 
-// Optional: Add an index for faster queries by user and status
-TaskSchema.index({ user: 1, status: 1 });
+// Add indexes for faster queries
+TaskSchema.index({ assignee: 1, status: 1 });
+TaskSchema.index({ project: 1, status: 1 });
+TaskSchema.index({ sprint: 1, status: 1 });
+TaskSchema.index({ createdBy: 1 });
 
 module.exports = mongoose.model('Task', TaskSchema);

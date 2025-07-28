@@ -1,0 +1,289 @@
+openapi: 3.0.0
+info:
+  title: Genflow User Management API
+  version: 1.0.0
+  description: User Management API for CRUD operations - Create, Read, Update, Delete users
+
+servers:
+  - url: http://localhost:5000/api
+    description: Local development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60c72b2f9c1d4a0015f8b4c1"
+        numericalId:
+          type: integer
+          example: 101
+        name:
+          type: string
+          example: "John Doe"
+        username:
+          type: string
+          example: "johndoe"
+        email:
+          type: string
+          format: email
+          example: "john@genworx.com"
+        role:
+          type: string
+          enum: [admin, team-lead, user]
+          example: "user"
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+          example: "active"
+        phone:
+          type: string
+          example: "+1234567890"
+        department:
+          type: string
+          example: "Development"
+        team:
+          type: string
+          example: "60c72b2f9c1d4a0015f8b4c2"
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Error message"
+
+security:
+  - bearerAuth: []
+
+paths:
+  /admin/users:
+    get:
+      summary: Get all users
+      description: Retrieve a list of all users (Admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized - Invalid or missing token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create a new user
+      description: Create a new user (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  example: "John Doe"
+                username:
+                  type: string
+                  example: "johndoe"
+                email:
+                  type: string
+                  format: email
+                  example: "john@genworx.com"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "password123"
+                role:
+                  type: string
+                  enum: [admin, team-lead, user]
+                  example: "user"
+                phone:
+                  type: string
+                  example: "+1234567890"
+                department:
+                  type: string
+                  example: "Development"
+                team:
+                  type: string
+                  example: "60c72b2f9c1d4a0015f8b4c2"
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request - Invalid user data or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users/{id}:
+    put:
+      summary: Update a user
+      description: Update an existing user (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            example: "60c72b2f9c1d4a0015f8b4c1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "John Doe"
+                username:
+                  type: string
+                  example: "johndoe"
+                email:
+                  type: string
+                  format: email
+                  example: "john@genworx.com"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "newpassword123"
+                role:
+                  type: string
+                  enum: [admin, team-lead, user]
+                  example: "user"
+                status:
+                  type: string
+                  enum: [active, inactive, suspended]
+                  example: "active"
+                phone:
+                  type: string
+                  example: "+1234567890"
+                department:
+                  type: string
+                  example: "Development"
+                team:
+                  type: string
+                  example: "60c72b2f9c1d4a0015f8b4c2"
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request - Invalid user data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete a user
+      description: Delete an existing user (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            example: "60c72b2f9c1d4a0015f8b4c1"
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User removed successfully"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

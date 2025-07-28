@@ -72,34 +72,52 @@ export class Calendar implements OnInit {
     if (!currentUser?.team) return;
 
     const teamProjects = this.projectService.getProjectsByTeam(currentUser.team);
+    if (!teamProjects || teamProjects.length === 0) {
+      this.events = [];
+      return;
+    }
+    
     const projectIds = teamProjects.map(p => p.id);
     
-    // Project deadlines as events
-    const projectEvents: CalendarEvent[] = teamProjects.map(project => ({
-      id: `project-${project.id}`,
-      title: `${project.name} Deadline`,
-      start: new Date(project.deadline),
-      end: new Date(project.deadline),
-      type: 'deadline',
-      color: 'bg-red-200 text-red-900 border-red-300',
-      data: project
-    }));
+    // Project deadlines as events with null checks
+    const projectEvents: CalendarEvent[] = teamProjects
+      .filter(project => project && project.name && project.deadline)
+      .map(project => ({
+        id: `project-${project.id}`,
+        title: `${project.name} Deadline`,
+        start: new Date(project.deadline),
+        end: new Date(project.deadline),
+        type: 'deadline',
+        color: 'bg-red-200 text-red-900 border-red-300',
+        data: project
+      }));
 
-    // Tasks as events
-    this.taskService.getTasks().subscribe(tasks => {
-      const taskEvents: CalendarEvent[] = tasks
-        .filter(task => projectIds.includes(task.projectId))
-        .map(task => ({
-          id: `task-${task.id}`,
-          title: task.title,
-          start: new Date(task.dueDate),
-          end: new Date(task.dueDate),
-          type: 'task',
-          color: this.getTaskColor(task.status),
-          data: task
-        }));
+    // Tasks as events with null checks
+    this.taskService.getTasks().subscribe({
+      next: (tasks) => {
+        if (!tasks || tasks.length === 0) {
+          this.events = [...projectEvents];
+          return;
+        }
         
-      this.events = [...projectEvents, ...taskEvents];
+        const taskEvents: CalendarEvent[] = tasks
+          .filter(task => task && task.title && task.dueDate && projectIds.includes(task.projectId))
+          .map(task => ({
+            id: `task-${task.id}`,
+            title: task.title,
+            start: new Date(task.dueDate),
+            end: new Date(task.dueDate),
+            type: 'task',
+            color: this.getTaskColor(task.status),
+            data: task
+          }));
+          
+        this.events = [...projectEvents, ...taskEvents];
+      },
+      error: (error) => {
+        console.error('Error loading tasks for calendar:', error);
+        this.events = [...projectEvents];
+      }
     });
   }
   
@@ -128,6 +146,8 @@ export class Calendar implements OnInit {
   }
   
   getProjectName(projectId: string): string {
-    return this.projectService.getProjectById(projectId)?.name || 'Unknown Project';
+    if (!projectId) return 'Unknown Project';
+    const project = this.projectService.getProjectById(projectId);
+    return project?.name || 'Unknown Project';
   }
 }

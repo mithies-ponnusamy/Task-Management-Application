@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
+const Team = require('../models/Team');
 const Counter = require('../models/Counter');
 
 // @desc    Get all users
@@ -91,6 +92,9 @@ const updateUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
 
   if (user) {
+    const oldTeamId = user.team;
+    const newTeamId = req.body.team;
+
     user.name = req.body.name || user.name;
     user.username = req.body.username || user.username;
     user.email = req.body.email || user.email;
@@ -112,6 +116,27 @@ const updateUser = asyncHandler(async (req, res) => {
     }
 
     const updatedUser = await user.save();
+
+    // Handle team membership changes
+    if (oldTeamId && oldTeamId !== newTeamId) {
+      // Remove user from old team
+      await Team.findByIdAndUpdate(
+        oldTeamId,
+        { $pull: { members: user._id } },
+        { new: true }
+      );
+      console.log(`Removed user ${user._id} from old team ${oldTeamId}`);
+    }
+
+    if (newTeamId && oldTeamId !== newTeamId) {
+      // Add user to new team
+      await Team.findByIdAndUpdate(
+        newTeamId,
+        { $addToSet: { members: user._id } },
+        { new: true }
+      );
+      console.log(`Added user ${user._id} to new team ${newTeamId}`);
+    }
 
     res.json({
       _id: updatedUser._id,

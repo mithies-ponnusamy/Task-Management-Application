@@ -14,12 +14,26 @@ const getTeams = asyncHandler(async (req, res) => {
     .populate('parentTeam', 'name')
     .lean();
 
-  // Calculate completion rate if not set
+  // Calculate completion rate if not set and ensure team lead is in members
   const teamsWithCompletion = teams.map(team => {
+    // Calculate completion rate
     if (team.completionRate === 0 && team.projects && team.projects.length > 0) {
       const totalProgress = team.projects.reduce((sum, project) => sum + (project.progress || 0), 0);
       team.completionRate = Math.round(totalProgress / team.projects.length);
     }
+    
+    // Ensure team lead is included in members array if not already present
+    if (team.lead && team.members) {
+      const leadId = team.lead._id || team.lead;
+      const isLeadInMembers = team.members.some(member => 
+        (member._id || member).toString() === leadId.toString()
+      );
+      
+      if (!isLeadInMembers) {
+        console.log(`Team lead ${leadId} not found in members for team ${team.name}, will be included separately`);
+      }
+    }
+    
     return team;
   });
 

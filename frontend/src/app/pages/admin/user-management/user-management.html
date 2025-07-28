@@ -1012,7 +1012,7 @@
                                             </div>
                                         </td>
                                         <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-500 capitalize">
-                                            {{member.role.replace('-', ' ')}}
+                                            {{member.role ? member.role.replace('-', ' ') : 'No Role'}}
                                         </td>
                                         <td class="px-4 py-2 whitespace-nowrap">
                                             <span class="px-2 py-1 rounded-full text-xs" [ngClass]="getStatusClass(member.status)">
@@ -1039,8 +1039,8 @@
                                         <h4 class="text-sm font-medium text-gray-800">{{project.name}}</h4>
                                         <div class="flex items-center mt-1">
                                             <span class="text-xs text-gray-500 mr-2">{{project.startDate | date}} - {{project.deadline | date}}</span>
-                                            <span class="text-xs px-2 py-0.5 rounded-full" [ngClass]="getPriorityClass(project.priority)">
-                                                {{project.priority}}
+                                            <span class="text-xs px-2 py-0.5 rounded-full" [ngClass]="getPriorityClass(project?.priority)">
+                                                {{project?.priority || 'N/A'}}
                                             </span>
                                         </div>
                                     </div>
@@ -1165,7 +1165,7 @@
                     <fa-icon [icon]="faTimes"></fa-icon>
                 </button>
             </div>
-            <form (ngSubmit)="saveTeamEdits()">
+            <form (ngSubmit)="saveTeamEdits()" #editTeamForm="ngForm">>
                 <div class="space-y-4">
                     <div>
                         <label for="editTeamName" class="block text-xs font-medium text-gray-500 required-field">Team Name</label>

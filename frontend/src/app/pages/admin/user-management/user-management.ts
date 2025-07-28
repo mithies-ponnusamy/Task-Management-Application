@@ -233,8 +233,8 @@ export class UserManagement implements OnInit, OnDestroy {
   applyFilters(): void {
     this.filteredUsers = [...this.users].filter(user => {
       const matchesSearch = !this.searchTerm || 
-        user.name.toLowerCase().includes(this.searchTerm.toLowerCase()) || 
-        user.email.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+        user.name?.toLowerCase().includes(this.searchTerm.toLowerCase()) || 
+        user.email?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
         user.username?.toLowerCase().includes(this.searchTerm.toLowerCase());
       
       const matchesRole = !this.selectedRole || user.role === this.selectedRole;
@@ -261,8 +261,8 @@ export class UserManagement implements OnInit, OnDestroy {
   filterTeams(): void {
     this.filteredTeams = this.teams.filter(team => 
       !this.teamSearchTerm || 
-      team.name.toLowerCase().includes(this.teamSearchTerm.toLowerCase()) ||
-      team.department.toLowerCase().includes(this.teamSearchTerm.toLowerCase())
+      team.name?.toLowerCase().includes(this.teamSearchTerm.toLowerCase()) ||
+      team.department?.toLowerCase().includes(this.teamSearchTerm.toLowerCase())
     );
   }
 
@@ -464,6 +464,10 @@ export class UserManagement implements OnInit, OnDestroy {
           this.isSubmitting = false;
           this.closeModals();
           this.applyFilters();
+          
+          // Refresh teams data if team assignment changed
+          this.loadTeams();
+          
           this.cdr.detectChanges();
           
           // Show toast message after UI updates
@@ -503,7 +507,10 @@ export class UserManagement implements OnInit, OnDestroy {
       next: (detailedTeam) => {
         this.selectedTeamForFilter = detailedTeam;
         this.showTeamDetailsModal = true;
-        this.cdr.detectChanges();
+        // Use setTimeout to defer change detection and avoid ExpressionChangedAfterItHasBeenCheckedError
+        setTimeout(() => {
+          this.cdr.detectChanges();
+        }, 0);
       },
       error: (err) => {
         console.error('Error loading team details:', err);
@@ -521,8 +528,29 @@ export class UserManagement implements OnInit, OnDestroy {
   }
 
   editTeam(team: Team): void {
-    this.selectedTeamForFilter = { ...team };
+    console.log('Editing team:', team);
+    
+    // Create a deep copy and ensure all properties are set
+    this.selectedTeamForFilter = {
+      ...team,
+      _id: team._id || team.id,
+      id: team.id || team._id || '',
+      name: team.name || '',
+      department: team.department || '',
+      lead: team.lead || '',
+      description: team.description || ''
+    };
+    
+    console.log('Selected team for filter:', this.selectedTeamForFilter);
+    
+    // Clear any existing form errors
+    this.teamFormErrors = {};
+    
+    // Show the modal
     this.showEditTeamModal = true;
+    
+    // Let Angular handle change detection naturally instead of forcing it
+    console.log('Edit team modal opened, selectedTeamForFilter:', this.selectedTeamForFilter);
   }
 
   // Confirms team deletion
@@ -857,8 +885,13 @@ export class UserManagement implements OnInit, OnDestroy {
   }
 
   // Returns CSS classes based on project/task priority for styling.
-  getPriorityClass(priority: string): string {
-    switch (priority.toLowerCase()) {
+  getPriorityClass(priority: string | undefined | null): string {
+    if (!priority || priority === null || priority === undefined) {
+      return 'bg-gray-100 text-gray-800';
+    }
+    
+    const priorityStr = String(priority);
+    switch (priorityStr.toLowerCase()) {
       case 'high': return 'bg-red-100 text-red-800';
       case 'medium': return 'bg-yellow-100 text-yellow-800';
       case 'low': return 'bg-green-100 text-green-800';
@@ -1104,8 +1137,32 @@ export class UserManagement implements OnInit, OnDestroy {
   // Update the getTeamMembers method to use backend data
   getTeamMembers(teamId: string): User[] {
     const team = this.teams.find(t => t.id === teamId);
-    if (!team || !team.memberDetails) return [];
-    return team.memberDetails.map(member => this.mapApiUserToUser(member));
+    if (!team) return [];
+    
+    let members: User[] = [];
+    
+    // Add team members
+    if (team.memberDetails && Array.isArray(team.memberDetails)) {
+      members = team.memberDetails.map(member => this.mapApiUserToUser(member));
+    }
+    
+    // Add team lead if not already in members and lead exists
+    if (team.leadDetails && team.lead) {
+      const leadId = team.lead;
+      const isLeadInMembers = members.some(member => member.id === leadId);
+      
+      if (!isLeadInMembers) {
+        const leadUser = this.mapApiUserToUser(team.leadDetails);
+        members.unshift(leadUser); // Add lead at the beginning
+      }
+    }
+    
+    // Remove duplicates based on ID
+    const uniqueMembers = members.filter((member, index, self) => 
+      index === self.findIndex(m => m.id === member.id)
+    );
+    
+    return uniqueMembers;
   }
 
   private mapApiUserToUser(apiUser: any): User {

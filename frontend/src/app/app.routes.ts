@@ -28,6 +28,8 @@ import { Profile } from './pages/member/profile/profile';
 import { Settings as MemberSettings } from './pages/member/settings/settings';
 import { LeadProfile } from './pages/lead/lead-profile/lead-profile';
 import { LeadSettings } from './pages/lead/lead-settings/lead-settings';
+import { TaskManagementComponent } from './pages/lead/task-management/task-management';
+import { CreateTask } from './pages/lead/create-task/create-task';
 import { Calendar } from './pages/member/calendar/calendar';
 import { Reports } from './pages/member/reports/reports';
 
@@ -130,6 +132,16 @@ export const routes: Routes = [
         path: 'backlogs',
         component: Backlogs,
         data: { title: 'Backlogs' }
+      },
+      {
+        path: 'tasks',
+        component: TaskManagementComponent,
+        data: { title: 'Tasks' }
+      },
+      {
+        path: 'tasks/create',
+        component: CreateTask,
+        data: { title: 'Create Task' }
       },
       {
         path: 'calendar',
