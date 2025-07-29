@@ -630,18 +630,11 @@ const createTask = asyncHandler(async (req, res) => {
     project: projectId,
     sprint: sprintId || null,
     priority: priority || 'medium',
-    status: 'todo',
+    status: 'to-do',
     dueDate,
     storyPoints: storyPoints || 1,
     createdBy: lead._id
   });
-
-  // If task is assigned to a sprint, add it to sprint's tasks
-  if (sprintId) {
-    await Sprint.findByIdAndUpdate(sprintId, {
-      $push: { tasks: task._id }
-    });
-  }
 
   // Populate task details
   const populatedTask = await Task.findById(task._id)

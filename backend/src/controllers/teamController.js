@@ -158,6 +158,10 @@ const updateTeam = asyncHandler(async (req, res) => {
     });
   }
 
+  // Handle team lead change
+  const oldLeadId = team.lead;
+  const newLeadId = lead;
+
   // Update team fields
   team.name = name || team.name;
   team.department = department || team.department;
@@ -166,6 +170,26 @@ const updateTeam = asyncHandler(async (req, res) => {
   team.parentTeam = parentTeam || team.parentTeam;
 
   const updatedTeam = await team.save();
+
+  // Update user's team field when lead changes
+  if (newLeadId && (!oldLeadId || oldLeadId.toString() !== newLeadId.toString())) {
+    // Set new lead's team field
+    await User.findByIdAndUpdate(newLeadId, { team: team._id });
+    
+    // Add lead to team members if not already there
+    if (!team.members.some(memberId => memberId.toString() === newLeadId.toString())) {
+      team.members.push(newLeadId);
+      await team.save();
+    }
+  }
+
+  // Remove old lead's team field if they're no longer in members
+  if (oldLeadId && newLeadId && oldLeadId.toString() !== newLeadId.toString()) {
+    const isOldLeadStillMember = team.members.some(memberId => memberId.toString() === oldLeadId.toString());
+    if (!isOldLeadStillMember) {
+      await User.findByIdAndUpdate(oldLeadId, { $unset: { team: "" } });
+    }
+  }
 
   // Populate the response
   const populatedTeam = await Team.findById(updatedTeam._id)

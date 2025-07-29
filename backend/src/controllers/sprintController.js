@@ -31,7 +31,17 @@ const getSprintById = asyncHandler(async (req, res) => {
       path: 'project',
       populate: {
         path: 'team',
-        select: 'name'
+        select: 'name members lead',
+        populate: [
+          {
+            path: 'members',
+            select: 'name email profileImg role'
+          },
+          {
+            path: 'lead',
+            select: 'name email profileImg role'
+          }
+        ]
       }
     })
     .lean();
@@ -40,6 +50,31 @@ const getSprintById = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Sprint not found');
   }
+
+  // Get tasks associated with this sprint from the Task collection
+  const Task = require('../models/Task');
+  const sprintTasks = await Task.find({ sprint: req.params.id })
+    .populate('assignee', 'name email profileImg')
+    .populate('project', 'name')
+    .populate('createdBy', 'name email')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Add the tasks to the sprint object
+  sprint.sprintTasks = sprintTasks;
+
+  // Calculate sprint statistics based on actual tasks
+  const totalTasks = sprintTasks.length;
+  const completedTasks = sprintTasks.filter(task => task.status === 'completed').length;
+  const totalEstimatedHours = sprintTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+  
+  sprint.stats = {
+    ...sprint.stats,
+    totalTasks,
+    tasksCompleted: completedTasks,
+    estimatedTime: totalEstimatedHours,
+    completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+  };
 
   res.json(sprint);
 });

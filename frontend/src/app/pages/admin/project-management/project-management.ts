@@ -7,7 +7,7 @@ import { forkJoin } from 'rxjs';
 import { 
   faSearch, faFilter, faPlus, faTimes, faExclamationCircle, 
   faExclamationTriangle, faInfoCircle, faFilePdf, faFileWord,
-  faTrashAlt, faEdit, faEye, faUsers, faProjectDiagram, faTasks
+  faTrashAlt, faEdit, faEye, faUsers, faProjectDiagram, faTasks, faLink
 } from '@fortawesome/free-solid-svg-icons';
 import { LocalStorageService } from '../../../core/services/local-storage/local-storage';
 import { DialogService } from '../../../core/services/dialog/dialog';
@@ -46,6 +46,7 @@ export class ProjectManagement implements OnInit {
   faInfoCircle = faInfoCircle;
   faFilePdf = faFilePdf;
   faFileWord = faFileWord;
+  faLink = faLink;
   faTrashAlt = faTrashAlt;
   faEye = faEye;
   faEdit = faEdit;
@@ -113,6 +114,10 @@ export class ProjectManagement implements OnInit {
   // Selected Project/Sprint
   selectedProject: any = null;
   selectedSprint: any = null;
+
+  // File and Link handling
+  newLinkUrl: string = '';
+  selectedFiles: FileList | null = null;
 
   constructor(
     private localStorage: LocalStorageService,
@@ -288,9 +293,16 @@ export class ProjectManagement implements OnInit {
           completionRate: team.completionRate || 0,
           description: team.description,
           leadDetails: team.lead, // Keep full lead details
-          memberDetails: team.members, // Keep full member details
+          memberDetails: Array.isArray(team.members) ? team.members.map((member: any) => ({
+            id: member._id || member.id,
+            name: member.name,
+            email: member.email,
+            role: member.role || 'Member'
+          })) : [], // Ensure memberDetails is properly structured
           projectDetails: team.projects // Keep full project details
         }));
+        
+        console.log('Processed teams with members:', this.teams);
         
         // Process projects
         this.projects = data.projects.map((project: any) => ({
@@ -307,6 +319,9 @@ export class ProjectManagement implements OnInit {
           lead: project.lead?._id || project.lead,
           manager: project.lead?._id || project.lead, // Map lead to manager for frontend
           progress: project.progress || 0,
+          budget: project.budget || 0,
+          files: project.files || [], // Include files from backend
+          links: project.links || [], // Include links from backend
           teamMembers: project.teamMembers || [],
           createdAt: project.createdAt,
           updatedAt: project.updatedAt
@@ -585,18 +600,44 @@ export class ProjectManagement implements OnInit {
   viewProjectDetails(projectId: string): void {
     this.selectedProject = this.projects.find(p => p.id === projectId);
     if (this.selectedProject) {
+      console.log('Selected project for details view:', this.selectedProject);
+      console.log('Available users for manager lookup:', this.users);
+      
+      // Ensure we have the complete project object with resolved names
+      const managerUser = this.users.find(u => (u.id === this.selectedProject?.manager) || (u._id === this.selectedProject?.manager));
+      console.log('Found manager user:', managerUser, 'for manager ID:', this.selectedProject.manager);
+      
+      // Create enhanced project object with resolved data
+      this.selectedProject = {
+        ...this.selectedProject,
+        managerName: managerUser?.name || 'Unknown Manager',
+        teamName: this.getTeamNameById(this.selectedProject.team)
+      };
+      
+      console.log('Enhanced selected project:', this.selectedProject);
+      console.log('Project files:', this.selectedProject.files);
+      console.log('Project links:', this.selectedProject.links);
+      
+      // Load team members for the project's team
+      this.loadTeamMembersForProject(this.selectedProject.team);
+      
+      // Load sprints for this project
+      this.loadSprintsForProject(this.selectedProject.id);
+      
+      // Patch form with original IDs for proper functionality
       this.editProjectForm.patchValue({
         name: this.selectedProject.name,
         description: this.selectedProject.description,
-        startDate: this.selectedProject.startDate,
-        deadline: this.selectedProject.deadline,
-        team: this.selectedProject.team,
-        manager: this.selectedProject.manager,
+        startDate: this.selectedProject.startDate || '',
+        deadline: this.selectedProject.deadline || '',
+        team: this.selectedProject.team, // Keep original team ID
+        manager: this.selectedProject.manager, // Keep original manager ID
         status: this.selectedProject.status,
         priority: this.selectedProject.priority,
-        progress: this.selectedProject.progress,
-        budget: this.selectedProject.budget
+        progress: this.selectedProject.progress || 0,
+        budget: this.selectedProject.budget || 0
       });
+      
       this.showProjectDetailsModal = true;
     }
   }
@@ -604,20 +645,151 @@ export class ProjectManagement implements OnInit {
   editProject(projectId: string): void {
     this.selectedProject = this.projects.find(p => p.id === projectId);
     if (this.selectedProject) {
+      // Load team members for the project's team
+      this.loadTeamMembersForProject(this.selectedProject.team);
+      
+      // Ensure the form gets all the current project data including dates and budget
       this.editProjectForm.patchValue({
         name: this.selectedProject.name,
         description: this.selectedProject.description,
-        startDate: this.selectedProject.startDate,
-        deadline: this.selectedProject.deadline,
+        startDate: this.selectedProject.startDate || '',
+        deadline: this.selectedProject.deadline || '',
         team: this.selectedProject.team,
         manager: this.selectedProject.manager,
         status: this.selectedProject.status,
         priority: this.selectedProject.priority,
-        progress: this.selectedProject.progress,
-        budget: this.selectedProject.budget
+        progress: this.selectedProject.progress || 0,
+        budget: this.selectedProject.budget || 0
       });
       this.showEditProjectModal = true;
+      this.showProjectDetailsModal = false; // Close details modal if open
     }
+  }
+
+  // Load team members for a specific team
+  loadTeamMembersForProject(teamId: string): void {
+    console.log('Loading team members for team ID:', teamId);
+    
+    if (!teamId) {
+      console.log('No team ID provided, clearing team members');
+      this.teamMembers = [];
+      return;
+    }
+    
+    // Find the team by ID and get its members
+    const team = this.teams.find(t => t.id === teamId || t._id === teamId);
+    console.log('Found team:', team);
+    
+    if (team && team.memberDetails && Array.isArray(team.memberDetails) && team.memberDetails.length > 0) {
+      console.log('Using cached team member details:', team.memberDetails);
+      this.teamMembers = team.memberDetails;
+    } else if (team && team.members && Array.isArray(team.members)) {
+      console.log('Processing team members from basic data:', team.members);
+      // If we have member IDs but not full details, try to resolve them from users array
+      this.teamMembers = team.members.map((memberId: any) => {
+        const member = this.users.find(u => u.id === memberId || u._id === memberId);
+        return member ? {
+          id: member.id || member._id,
+          name: member.name,
+          email: member.email,
+          role: member.role || 'Member'
+        } : {
+          id: memberId,
+          name: 'Unknown',
+          email: '',
+          role: 'Member'
+        };
+      });
+      console.log('Resolved team members:', this.teamMembers);
+    } else {
+      console.log('No team member data found locally, fetching from backend for team ID:', teamId);
+      // If team details not available locally, fetch from backend
+      this.authService.adminGetTeamById(teamId).subscribe({
+        next: (teamData: any) => {
+          console.log('Team data loaded from backend:', teamData);
+          if (teamData.members && Array.isArray(teamData.members)) {
+            this.teamMembers = teamData.members.map((member: any) => ({
+              id: member._id || member.id,
+              name: member.name || 'Unknown',
+              email: member.email || '',
+              role: member.role || 'Member'
+            }));
+          } else {
+            this.teamMembers = [];
+          }
+          console.log('Team members set from backend:', this.teamMembers);
+        },
+        error: (error: any) => {
+          console.error('Failed to load team members from backend:', error);
+          this.teamMembers = [];
+        }
+      });
+    }
+  }
+
+  // Load sprints for a specific project
+  loadSprintsForProject(projectId: string): void {
+    console.log('Loading sprints for project ID:', projectId);
+    console.log('Available sprints:', this.sprints);
+    
+    if (!projectId) {
+      if (this.selectedProject) {
+        this.selectedProject.sprints = [];
+      }
+      return;
+    }
+    
+    // Filter sprints that belong to this project
+    const projectSprints = this.sprints.filter(sprint => {
+      const sprintProjectId = sprint.project || sprint.projectId;
+      console.log('Sprint project ID:', sprintProjectId, 'Target project ID:', projectId);
+      return sprintProjectId === projectId;
+    });
+    
+    console.log('Found project sprints:', projectSprints);
+    
+    if (this.selectedProject) {
+      this.selectedProject.sprints = projectSprints.map(sprint => ({
+        id: sprint.id,
+        name: sprint.name,
+        status: sprint.status,
+        startDate: sprint.startDate,
+        endDate: sprint.endDate,
+        goal: sprint.goal
+      }));
+      console.log('Project sprints set:', this.selectedProject.sprints);
+    }
+  }
+
+  // Get manager name by ID
+  getManagerName(managerId: string): string {
+    if (!managerId) return 'Not assigned';
+    
+    const manager = this.users.find(u => u.id === managerId || u._id === managerId);
+    return manager ? manager.name : 'Unknown Manager';
+  }
+
+  // Helper method to get user initials
+  getInitials(name: string): string {
+    if (!name) return '';
+    return name.split(' ')
+      .map(part => part.charAt(0).toUpperCase())
+      .join('')
+      .substring(0, 2);
+  }
+
+  // Helper method to format dates
+  formatDate(date: string | Date): string {
+    if (!date) return 'Not set';
+    
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return 'Invalid date';
+    
+    return dateObj.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   }
 
   // Sprint Methods
@@ -719,12 +891,6 @@ export class ProjectManagement implements OnInit {
   }
 
   // Utility Methods
-  formatDate(dateString: string): string {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  }
-
   getStatusClass(status: string): string {
     switch (status) {
       case 'completed':
@@ -751,12 +917,6 @@ export class ProjectManagement implements OnInit {
       default:
         return 'text-gray-500';
     }
-  }
-
-  getInitials(name: string): string {
-    if (!name) return '';
-    const parts = name.split(' ');
-    return parts.map(part => part[0]).join('').toUpperCase();
   }
 
   calculateDaysRemaining(endDate: string): number {
@@ -932,52 +1092,84 @@ export class ProjectManagement implements OnInit {
       return;
     }
     
-    const index = this.projects.findIndex(p => p.id === this.selectedProject.id);
-    if (index !== -1) {
-      const oldTeam = this.projects[index].team;
-      const newTeam = this.editProjectForm.value.team;
-      
-      // Update team project counts if team changed
-      if (oldTeam !== newTeam) {
-        const teams = this.localStorage.getTeams<any[]>() || [];
-        
-        // Decrement count for old team
-        const oldTeamIndex = teams.findIndex(t => t.name === oldTeam);
-        if (oldTeamIndex !== -1) {
-          teams[oldTeamIndex].projects = Math.max(0, teams[oldTeamIndex].projects - 1);
-        }
-        
-        // Increment count for new team
-        const newTeamIndex = teams.findIndex(t => t.name === newTeam);
-        if (newTeamIndex !== -1) {
-          teams[newTeamIndex].projects += 1;
-        }
-        
-        this.localStorage.saveTeams(teams);
-      }
-      
-      this.projects[index] = {
-        ...this.projects[index],
-        name: this.editProjectForm.value.name,
-        description: this.editProjectForm.value.description,
-        startDate: this.editProjectForm.value.startDate,
-        deadline: this.editProjectForm.value.deadline,
-        team: newTeam,
-        manager: this.editProjectForm.value.manager,
-        status: this.editProjectForm.value.status,
-        priority: this.editProjectForm.value.priority,
-        progress: this.editProjectForm.value.progress,
-        budget: this.editProjectForm.value.budget
-      };
-      
-      this.localStorage.saveProjects(this.projects);
-      this.filteredProjects = [...this.projects];
-      this.applyProjectsFilters();
-      this.showEditProjectModal = false;
-      this.showProjectDetailsModal = false;
+    const projectId = this.selectedProject.id || this.selectedProject._id;
+    if (!projectId) {
+      console.error('Cannot update project: Invalid ID');
+      this.toastService.show('Error: Invalid project ID', 'error');
+      return;
     }
 
+    this.isLoading = true;
     
+    const updatedProjectData = {
+      name: this.editProjectForm.value.name,
+      description: this.editProjectForm.value.description,
+      startDate: this.editProjectForm.value.startDate,
+      deadline: this.editProjectForm.value.deadline,
+      team: this.editProjectForm.value.team,
+      manager: this.editProjectForm.value.manager,
+      status: this.editProjectForm.value.status,
+      priority: this.editProjectForm.value.priority,
+      progress: this.editProjectForm.value.progress,
+      budget: this.editProjectForm.value.budget
+    };
+
+    this.authService.adminUpdateProject(projectId, updatedProjectData).subscribe({
+      next: (response: any) => {
+        console.log('Project updated successfully:', response);
+        
+        // Update local state
+        const index = this.projects.findIndex(p => (p.id || p._id) === projectId);
+        if (index !== -1) {
+          const oldTeam = this.projects[index].team;
+          const newTeam = updatedProjectData.team;
+          
+          // Update team project counts if team changed
+          if (oldTeam !== newTeam) {
+            const teams = this.localStorage.getTeams<any[]>() || [];
+            
+            // Decrement count for old team
+            const oldTeamIndex = teams.findIndex(t => t.name === oldTeam);
+            if (oldTeamIndex !== -1) {
+              teams[oldTeamIndex].projects = Math.max(0, teams[oldTeamIndex].projects - 1);
+            }
+            
+            // Increment count for new team
+            const newTeamIndex = teams.findIndex(t => t.name === newTeam);
+            if (newTeamIndex !== -1) {
+              teams[newTeamIndex].projects += 1;
+            }
+            
+            this.localStorage.saveTeams(teams);
+          }
+          
+          // Update the project with the response data
+          this.projects[index] = {
+            ...this.projects[index],
+            ...updatedProjectData,
+            id: projectId, // Ensure ID is preserved
+            _id: projectId // Backend compatibility
+          };
+          
+          this.localStorage.saveProjects(this.projects);
+          this.filteredProjects = [...this.projects];
+          this.applyProjectsFilters();
+        }
+        
+        this.showEditProjectModal = false;
+        this.showProjectDetailsModal = false;
+        this.toastService.show(`Project "${updatedProjectData.name}" updated successfully.`, 'success');
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Failed to update project:', error);
+        this.toastService.show(
+          `Failed to update project: ${error.message || 'Unknown error'}`, 
+          'error'
+        );
+        this.isLoading = false;
+      }
+    });
   }
 
   deleteProject(project: any): void {
@@ -1005,12 +1197,37 @@ export class ProjectManagement implements OnInit {
   }
 
   private executeDeleteProject(project: any): void {
-      const projectId = project.id || project._id;
-      this.projects = this.projects.filter(p => (p.id || p._id) !== projectId);
-      this.localStorage.saveProjects(this.projects);
-      this.applyProjectsFilters();
-      this.closeAllModals();
-      this.toastService.show(`Project "${project.name}" deleted successfully.`);
+    const projectId = project.id || project._id;
+    
+    if (!projectId) {
+      console.error('Cannot delete project: Invalid ID');
+      this.toastService.show('Error: Invalid project ID', 'error');
+      return;
+    }
+
+    this.isLoading = true;
+    
+    this.authService.adminDeleteProject(projectId).subscribe({
+      next: (response: any) => {
+        console.log('Project deleted successfully from backend:', response);
+        
+        // Remove from local state
+        this.projects = this.projects.filter(p => (p.id || p._id) !== projectId);
+        this.localStorage.saveProjects(this.projects);
+        this.applyProjectsFilters();
+        this.closeAllModals();
+        this.toastService.show(`Project "${project.name}" deleted successfully.`, 'success');
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Failed to delete project:', error);
+        this.toastService.show(
+          `Failed to delete project: ${error.message || 'Unknown error'}`, 
+          'error'
+        );
+        this.isLoading = false;
+      }
+    });
   }
 
   createNewSprint(): void {
@@ -1093,34 +1310,67 @@ export class ProjectManagement implements OnInit {
       return;
     }
     
-    const index = this.sprints.findIndex(s => s.id === this.selectedSprint.id);
-    if (index !== -1) {
-      this.sprints[index] = {
-        ...this.sprints[index],
-        name: this.editSprintForm.value.name,
-        description: this.editSprintForm.value.description,
-        project: this.editSprintForm.value.project,
-        status: this.editSprintForm.value.status,
-        startDate: this.editSprintForm.value.startDate,
-        endDate: this.editSprintForm.value.endDate,
-        goal: this.editSprintForm.value.goal,
-        tasks: this.editSprintForm.value.selectedTasks.map((taskName: string) => ({
-          id: 'T' + Math.floor(100 + Math.random() * 900),
-          name: taskName,
-          assignee: 'Unassigned',
-          dueDate: this.editSprintForm.value.endDate,
-          status: 'todo',
-          priority: 'medium',
-          estimatedHours: 0
-        }))
-      };
-      
-      this.localStorage.saveSprints(this.sprints);
-      this.filteredSprints = [...this.sprints];
-      this.applySprintsFilters();
-      this.showEditSprintModal = false;
-      this.showSprintDetailsModal = false;
+    const sprintId = this.selectedSprint.id || this.selectedSprint._id;
+    if (!sprintId) {
+      console.error('Cannot update sprint: Invalid ID');
+      this.toastService.show('Error: Invalid sprint ID', 'error');
+      return;
     }
+
+    this.isLoading = true;
+    
+    const updatedSprintData = {
+      name: this.editSprintForm.value.name,
+      description: this.editSprintForm.value.description,
+      project: this.editSprintForm.value.project,
+      status: this.editSprintForm.value.status,
+      startDate: this.editSprintForm.value.startDate,
+      endDate: this.editSprintForm.value.endDate,
+      goal: this.editSprintForm.value.goal
+    };
+
+    this.authService.adminUpdateSprint(sprintId, updatedSprintData).subscribe({
+      next: (response: any) => {
+        console.log('Sprint updated successfully:', response);
+        
+        // Update local state
+        const index = this.sprints.findIndex(s => (s.id || s._id) === sprintId);
+        if (index !== -1) {
+          this.sprints[index] = {
+            ...this.sprints[index],
+            ...updatedSprintData,
+            id: sprintId, // Ensure ID is preserved
+            _id: sprintId, // Backend compatibility
+            tasks: this.editSprintForm.value.selectedTasks?.map((taskName: string) => ({
+              id: 'T' + Math.floor(100 + Math.random() * 900),
+              name: taskName,
+              assignee: 'Unassigned',
+              dueDate: updatedSprintData.endDate,
+              status: 'todo',
+              priority: 'medium',
+              estimatedHours: 0
+            })) || []
+          };
+          
+          this.localStorage.saveSprints(this.sprints);
+          this.filteredSprints = [...this.sprints];
+          this.applySprintsFilters();
+        }
+        
+        this.showEditSprintModal = false;
+        this.showSprintDetailsModal = false;
+        this.toastService.show(`Sprint "${updatedSprintData.name}" updated successfully.`, 'success');
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Failed to update sprint:', error);
+        this.toastService.show(
+          `Failed to update sprint: ${error.message || 'Unknown error'}`, 
+          'error'
+        );
+        this.isLoading = false;
+      }
+    });
   }
 
   deleteSprint(sprint: any): void {
@@ -1134,10 +1384,224 @@ export class ProjectManagement implements OnInit {
   }
   
   private executeDeleteSprint(sprint: any): void {
-      this.sprints = this.sprints.filter(s => s.id !== sprint.id);
-      this.localStorage.saveSprints(this.sprints);
-      this.applySprintsFilters();
-      this.closeAllModals();
-      this.toastService.show(`Sprint "${sprint.name}" deleted successfully.`);
+    const sprintId = sprint.id || sprint._id;
+    
+    if (!sprintId) {
+      console.error('Cannot delete sprint: Invalid ID');
+      this.toastService.show('Error: Invalid sprint ID', 'error');
+      return;
+    }
+
+    this.isLoading = true;
+    
+    this.authService.adminDeleteSprint(sprintId).subscribe({
+      next: (response: any) => {
+        console.log('Sprint deleted successfully from backend:', response);
+        
+        // Remove from local state
+        this.sprints = this.sprints.filter(s => (s.id || s._id) !== sprintId);
+        this.localStorage.saveSprints(this.sprints);
+        this.applySprintsFilters();
+        this.closeAllModals();
+        this.toastService.show(`Sprint "${sprint.name}" deleted successfully.`, 'success');
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Failed to delete sprint:', error);
+        this.toastService.show(
+          `Failed to delete sprint: ${error.message || 'Unknown error'}`, 
+          'error'
+        );
+        this.isLoading = false;
+      }
+    });
+  }
+
+  // File and Link management methods
+  getFileIcon(filename: string): any {
+    const extension = filename.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return this.faFilePdf;
+      case 'doc':
+      case 'docx':
+        return this.faFileWord;
+      default:
+        return this.faFilePdf; // Default icon
+    }
+  }
+
+  getFileIconColor(filename: string): string {
+    const extension = filename.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return 'text-red-500';
+      case 'doc':
+      case 'docx':
+        return 'text-blue-500';
+      default:
+        return 'text-gray-500';
+    }
+  }
+
+  onFileSelect(event: any): void {
+    this.selectedFiles = event.target.files;
+    if (this.selectedFiles && this.selectedFiles.length > 0) {
+      this.uploadFiles();
+    }
+  }
+
+  uploadFiles(): void {
+    if (!this.selectedFiles || !this.selectedProject) return;
+
+    console.log('=== FILE UPLOAD DEBUG ===');
+    console.log('Selected files:', this.selectedFiles);
+    console.log('Selected project ID:', this.selectedProject.id);
+    console.log('Number of files:', this.selectedFiles.length);
+
+    // Convert FileList to array
+    const filesArray = Array.from(this.selectedFiles);
+    console.log('Files array:', filesArray.map(f => ({ name: f.name, size: f.size, type: f.type })));
+
+    // Call backend API to upload files
+    console.log('Making API call to upload files...');
+    this.authService.adminUploadProjectFiles(this.selectedProject.id, filesArray).subscribe({
+      next: (response) => {
+        console.log('FILES UPLOADED SUCCESSFULLY:', response);
+        
+        // Add the uploaded files to the selected project
+        if (!this.selectedProject.files) {
+          this.selectedProject.files = [];
+        }
+        this.selectedProject.files.push(...response.files);
+
+        // Update the project in the projects array
+        const projectIndex = this.projects.findIndex(p => p.id === this.selectedProject.id);
+        if (projectIndex !== -1) {
+          this.projects[projectIndex] = { ...this.selectedProject };
+        }
+
+        this.toastService.show(`${response.files.length} file(s) uploaded successfully`, 'success');
+        
+        // Reset file input
+        this.selectedFiles = null;
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+      },
+      error: (error) => {
+        console.error('FILE UPLOAD FAILED:', error);
+        console.error('Error status:', error.status);
+        console.error('Error message:', error.message);
+        console.error('Full error object:', error);
+        this.toastService.show(error.message || 'Failed to upload files', 'error');
+      }
+    });
+  }
+
+  downloadFile(file: any): void {
+    // Create download URL using backend's static file serving
+    const baseUrl = 'http://localhost:5000';
+    const fileUrl = file.path ? `${baseUrl}/uploads/${file.path}` : `${baseUrl}${file.url}`;
+    
+    // Create a temporary download link
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = file.name || file.filename;
+    link.target = '_blank';
+    
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    this.toastService.show(`Downloading ${file.name || file.filename}`, 'info');
+  }
+
+  deleteFile(fileId: string): void {
+    if (!this.selectedProject || !this.selectedProject.files) return;
+
+    // Call backend API to delete file
+    this.authService.adminDeleteProjectFile(this.selectedProject.id, fileId).subscribe({
+      next: (response) => {
+        console.log('File deleted successfully:', response);
+        
+        // Remove file from selected project
+        this.selectedProject.files = this.selectedProject.files.filter((file: any) => file.id !== fileId);
+
+        // Update the project in the projects array
+        const projectIndex = this.projects.findIndex(p => p.id === this.selectedProject.id);
+        if (projectIndex !== -1) {
+          this.projects[projectIndex] = { ...this.selectedProject };
+        }
+
+        this.toastService.show('File deleted successfully', 'success');
+      },
+      error: (error) => {
+        console.error('File deletion failed:', error);
+        this.toastService.show(error.message || 'Failed to delete file', 'error');
+      }
+    });
+  }
+
+  addProjectLink(): void {
+    if (!this.newLinkUrl || !this.selectedProject) return;
+
+    // Prepare link data for backend
+    const linkData = {
+      url: this.newLinkUrl,
+      title: this.newLinkUrl
+    };
+
+    // Call backend API to add link
+    this.authService.adminAddProjectLink(this.selectedProject.id, linkData).subscribe({
+      next: (response) => {
+        console.log('Link added successfully:', response);
+        
+        // Add link to the selected project
+        if (!this.selectedProject.links) {
+          this.selectedProject.links = [];
+        }
+        this.selectedProject.links.push(response.link);
+
+        // Update the project in the projects array
+        const projectIndex = this.projects.findIndex(p => p.id === this.selectedProject.id);
+        if (projectIndex !== -1) {
+          this.projects[projectIndex] = { ...this.selectedProject };
+        }
+
+        this.toastService.show('Link added successfully', 'success');
+        this.newLinkUrl = '';
+      },
+      error: (error) => {
+        console.error('Link addition failed:', error);
+        this.toastService.show(error.message || 'Failed to add link', 'error');
+      }
+    });
+  }
+
+  deleteLink(linkId: string): void {
+    if (!this.selectedProject || !this.selectedProject.links) return;
+
+    // Call backend API to delete link
+    this.authService.adminDeleteProjectLink(this.selectedProject.id, linkId).subscribe({
+      next: (response) => {
+        console.log('Link deleted successfully:', response);
+        
+        // Remove link from selected project
+        this.selectedProject.links = this.selectedProject.links.filter((link: any) => link.id !== linkId);
+
+        // Update the project in the projects array
+        const projectIndex = this.projects.findIndex(p => p.id === this.selectedProject.id);
+        if (projectIndex !== -1) {
+          this.projects[projectIndex] = { ...this.selectedProject };
+        }
+
+        this.toastService.show('Link deleted successfully', 'success');
+      },
+      error: (error) => {
+        console.error('Link deletion failed:', error);
+        this.toastService.show(error.message || 'Failed to delete link', 'error');
+      }
+    });
   }
 }

@@ -1,9 +1,10 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, Optional } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, BehaviorSubject, Subject, throwError, of } from 'rxjs';
 import { map, tap, catchError, finalize } from 'rxjs/operators';
 import { AuthResponse, Team, User, UserRole } from '../../../model/user.model';
+import { ToastService } from '../toast/toast';
 
 @Injectable({
   providedIn: 'root'
@@ -16,7 +17,8 @@ export class Auth {
 
   constructor(
     private http: HttpClient,
-    @Inject(PLATFORM_ID) private platformId: Object
+    @Inject(PLATFORM_ID) private platformId: Object,
+    @Optional() private toastService?: ToastService
   ) {
     this.loadCurrentUserFromStorage();
   }
@@ -418,11 +420,19 @@ export class Auth {
 
   // Update an existing project
   adminUpdateProject(id: string, projectData: any): Observable<any> {
+    const token = this.getToken();
+    console.log('Updating project with token:', token ? 'Token exists' : 'No token');
+    
     return this.http.put<any>(`${this.apiUrl}/admin/projects/${id}`, projectData, { 
       headers: this.getAuthHeaders() 
     }).pipe(
       catchError(error => {
         console.error('Failed to update project:', error);
+        if (error.status === 401) {
+          this.toastService?.show('Authentication failed. Please login again.', 'error');
+          this.logout();
+          return throwError(() => new Error('Not authorized, token failed'));
+        }
         return throwError(() => new Error(error.error?.message || 'Failed to update project'));
       })
     );
@@ -436,6 +446,103 @@ export class Auth {
       catchError(error => {
         console.error('Failed to delete project:', error);
         return throwError(() => new Error(error.error?.message || 'Failed to delete project'));
+      })
+    );
+  }
+
+  // ================== PROJECT FILE MANAGEMENT METHODS ==================
+
+  // Upload files to a project
+  adminUploadProjectFiles(projectId: string, files: File[]): Observable<any> {
+    console.log('=== AUTH SERVICE FILE UPLOAD ===');
+    console.log('Project ID:', projectId);
+    console.log('Files to upload:', files.length);
+    
+    const formData = new FormData();
+    files.forEach(file => {
+      console.log('Adding file to FormData:', file.name);
+      formData.append('files', file);
+    });
+
+    // Create headers without Content-Type to let browser set multipart boundary
+    const token = this.getToken();
+    console.log('Auth token exists:', !!token);
+    
+    const headers = new HttpHeaders({
+      'Authorization': token ? `Bearer ${token}` : ''
+    });
+
+    const uploadUrl = `${this.apiUrl}/admin/projects/${projectId}/files`;
+    console.log('Upload URL:', uploadUrl);
+
+    return this.http.post<any>(uploadUrl, formData, { 
+      headers: headers
+    }).pipe(
+      tap(response => {
+        console.log('HTTP POST response received:', response);
+      }),
+      catchError(error => {
+        console.error('HTTP POST failed:', error);
+        console.error('Error status:', error.status);
+        console.error('Error details:', error.error);
+        
+        if (error.status === 401) {
+          this.toastService?.show('Authentication failed. Please login again.', 'error');
+          this.logout();
+          return throwError(() => new Error('Not authorized, token failed'));
+        }
+        return throwError(() => new Error(error.error?.message || 'Failed to upload files'));
+      })
+    );
+  }
+
+  // Delete a file from a project
+  adminDeleteProjectFile(projectId: string, fileId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/admin/projects/${projectId}/files/${fileId}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to delete file:', error);
+        if (error.status === 401) {
+          this.toastService?.show('Authentication failed. Please login again.', 'error');
+          this.logout();
+          return throwError(() => new Error('Not authorized, token failed'));
+        }
+        return throwError(() => new Error(error.error?.message || 'Failed to delete file'));
+      })
+    );
+  }
+
+  // Add a link to a project
+  adminAddProjectLink(projectId: string, linkData: { url: string; title?: string; description?: string }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/admin/projects/${projectId}/links`, linkData, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to add link:', error);
+        if (error.status === 401) {
+          this.toastService?.show('Authentication failed. Please login again.', 'error');
+          this.logout();
+          return throwError(() => new Error('Not authorized, token failed'));
+        }
+        return throwError(() => new Error(error.error?.message || 'Failed to add link'));
+      })
+    );
+  }
+
+  // Delete a link from a project
+  adminDeleteProjectLink(projectId: string, linkId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/admin/projects/${projectId}/links/${linkId}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to delete link:', error);
+        if (error.status === 401) {
+          this.toastService?.show('Authentication failed. Please login again.', 'error');
+          this.logout();
+          return throwError(() => new Error('Not authorized, token failed'));
+        }
+        return throwError(() => new Error(error.error?.message || 'Failed to delete link'));
       })
     );
   }
@@ -705,6 +812,184 @@ export class Auth {
       catchError(error => {
         console.error('Failed to delete task:', error);
         return throwError(() => new Error(error.error?.message || 'Failed to delete task'));
+      })
+    );
+  }
+
+  // ================== TASK FILE & LINK MANAGEMENT ==================
+
+  // Upload requirement files to a task (Team Lead)
+  leadUploadTaskRequirementFiles(taskId: string, files: File[]): Observable<any> {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    const token = this.getToken();
+    const headers = new HttpHeaders({
+      'Authorization': token ? `Bearer ${token}` : ''
+    });
+
+    return this.http.post<any>(`${this.apiUrl}/lead/tasks/${taskId}/requirement-files`, formData, { 
+      headers: headers
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to upload requirement files:', error);
+        if (error.status === 401) {
+          this.toastService?.show('Authentication failed. Please login again.', 'error');
+          this.logout();
+          return throwError(() => new Error('Not authorized, token failed'));
+        }
+        return throwError(() => new Error(error.error?.message || 'Failed to upload requirement files'));
+      })
+    );
+  }
+
+  // Delete requirement file from task
+  leadDeleteTaskRequirementFile(taskId: string, fileId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/lead/tasks/${taskId}/requirement-files/${fileId}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to delete requirement file:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to delete requirement file'));
+      })
+    );
+  }
+
+  // Add requirement link to task
+  leadAddTaskRequirementLink(taskId: string, linkData: { url: string; title?: string; description?: string }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/lead/tasks/${taskId}/requirement-links`, linkData, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to add requirement link:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to add requirement link'));
+      })
+    );
+  }
+
+  // Delete requirement link from task
+  leadDeleteTaskRequirementLink(taskId: string, linkId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/lead/tasks/${taskId}/requirement-links/${linkId}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to delete requirement link:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to delete requirement link'));
+      })
+    );
+  }
+
+  // Review task (Team Lead)
+  leadReviewTask(taskId: string, reviewData: { reviewNotes?: string; approved: boolean }): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/lead/tasks/${taskId}/review`, reviewData, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to review task:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to review task'));
+      })
+    );
+  }
+
+  // ================== TEAM MEMBER TASK WORKFLOW ==================
+
+  // Mark task as read (Team Member)
+  markTaskAsRead(taskId: string): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/tasks/${taskId}/mark-as-read`, {}, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to mark task as read:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to mark task as read'));
+      })
+    );
+  }
+
+  // Upload completion files to task (Team Member)
+  uploadTaskCompletionFiles(taskId: string, files: File[]): Observable<any> {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    const token = this.getToken();
+    const headers = new HttpHeaders({
+      'Authorization': token ? `Bearer ${token}` : ''
+    });
+
+    return this.http.post<any>(`${this.apiUrl}/tasks/${taskId}/completion-files`, formData, { 
+      headers: headers
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to upload completion files:', error);
+        if (error.status === 401) {
+          this.toastService?.show('Authentication failed. Please login again.', 'error');
+          this.logout();
+          return throwError(() => new Error('Not authorized, token failed'));
+        }
+        return throwError(() => new Error(error.error?.message || 'Failed to upload completion files'));
+      })
+    );
+  }
+
+  // Delete completion file from task
+  deleteTaskCompletionFile(taskId: string, fileId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/tasks/${taskId}/completion-files/${fileId}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to delete completion file:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to delete completion file'));
+      })
+    );
+  }
+
+  // Add completion link to task
+  addTaskCompletionLink(taskId: string, linkData: { url: string; title?: string; description?: string }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/tasks/${taskId}/completion-links`, linkData, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to add completion link:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to add completion link'));
+      })
+    );
+  }
+
+  // Delete completion link from task
+  deleteTaskCompletionLink(taskId: string, linkId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/tasks/${taskId}/completion-links/${linkId}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to delete completion link:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to delete completion link'));
+      })
+    );
+  }
+
+  // Move task to review status
+  moveTaskToReview(taskId: string): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/tasks/${taskId}/move-to-review`, {}, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to move task to review:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to move task to review'));
+      })
+    );
+  }
+
+  // Get tasks by assignee (for team member view)
+  getTasksByAssignee(userId: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/tasks/assignee/${userId}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to get tasks by assignee:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to get tasks by assignee'));
       })
     );
   }

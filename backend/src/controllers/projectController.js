@@ -165,10 +165,171 @@ const deleteProject = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Upload files to project
+// @route   POST /api/admin/projects/:id/files
+// @access  Private/Admin
+const uploadProjectFiles = asyncHandler(async (req, res) => {
+  const projectId = req.params.id;
+  const uploadedFiles = req.files || [];
+
+  if (!uploadedFiles || uploadedFiles.length === 0) {
+    res.status(400);
+    throw new Error('No files uploaded');
+  }
+
+  try {
+    const project = await Project.findById(projectId);
+    
+    if (!project) {
+      res.status(404);
+      throw new Error('Project not found');
+    }
+
+    // Create file objects for each uploaded file
+    const newFiles = uploadedFiles.map(file => ({
+      id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: file.originalname,
+      filename: file.filename,
+      originalName: file.originalname,
+      size: file.size,
+      type: file.mimetype,
+      path: file.path,
+      url: `/uploads/${file.filename}`,
+      uploadedAt: new Date(),
+      uploadedBy: req.user._id
+    }));
+
+    // Add files to project
+    if (!project.files) {
+      project.files = [];
+    }
+    project.files.push(...newFiles);
+
+    await project.save();
+
+    res.status(201).json({
+      message: `${newFiles.length} file(s) uploaded successfully`,
+      files: newFiles,
+      project: project
+    });
+  } catch (error) {
+    console.error('Error uploading files:', error);
+    res.status(500).json({ message: error.message || 'Server error uploading files' });
+  }
+});
+
+// @desc    Delete file from project
+// @route   DELETE /api/admin/projects/:id/files/:fileId
+// @access  Private/Admin
+const deleteProjectFile = asyncHandler(async (req, res) => {
+  const { id: projectId, fileId } = req.params;
+
+  try {
+    const project = await Project.findById(projectId);
+    
+    if (!project) {
+      res.status(404);
+      throw new Error('Project not found');
+    }
+
+    // Remove file from project files array
+    project.files = project.files.filter(file => file.id !== fileId);
+    await project.save();
+
+    res.json({ 
+      message: 'File deleted successfully',
+      project: project 
+    });
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    res.status(500).json({ message: error.message || 'Server error deleting file' });
+  }
+});
+
+// @desc    Add link to project
+// @route   POST /api/admin/projects/:id/links
+// @access  Private/Admin
+const addProjectLink = asyncHandler(async (req, res) => {
+  const projectId = req.params.id;
+  const { url, title, description } = req.body;
+
+  if (!url) {
+    res.status(400);
+    throw new Error('URL is required');
+  }
+
+  try {
+    const project = await Project.findById(projectId);
+    
+    if (!project) {
+      res.status(404);
+      throw new Error('Project not found');
+    }
+
+    const newLink = {
+      id: `link_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title: title || url,
+      url: url,
+      description: description || '',
+      addedAt: new Date(),
+      addedBy: req.user._id
+    };
+
+    // Add link to project
+    if (!project.links) {
+      project.links = [];
+    }
+    project.links.push(newLink);
+
+    await project.save();
+
+    res.status(201).json({
+      message: 'Link added successfully',
+      link: newLink,
+      project: project
+    });
+  } catch (error) {
+    console.error('Error adding link:', error);
+    res.status(500).json({ message: error.message || 'Server error adding link' });
+  }
+});
+
+// @desc    Delete link from project
+// @route   DELETE /api/admin/projects/:id/links/:linkId
+// @access  Private/Admin
+const deleteProjectLink = asyncHandler(async (req, res) => {
+  const { id: projectId, linkId } = req.params;
+
+  try {
+    const project = await Project.findById(projectId);
+    
+    if (!project) {
+      res.status(404);
+      throw new Error('Project not found');
+    }
+
+    // Remove link from project links array
+    project.links = project.links.filter(link => link.id !== linkId);
+    await project.save();
+
+    res.json({ 
+      message: 'Link deleted successfully',
+      project: project 
+    });
+  } catch (error) {
+    console.error('Error deleting link:', error);
+    res.status(500).json({ message: error.message || 'Server error deleting link' });
+  }
+});
+
 module.exports = {
   getProjects,
   getProjectById,
   createProject,
   updateProject,
-  deleteProject
+  deleteProject,
+  uploadProjectFiles,
+  deleteProjectFile,
+  addProjectLink,
+  deleteProjectLink
 };

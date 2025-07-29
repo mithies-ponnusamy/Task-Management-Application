@@ -48,6 +48,42 @@ const ProjectSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Task'
     }],
+    budget: {
+        type: Number,
+        default: 0
+    },
+    files: [{
+        id: String,
+        name: String,
+        filename: String,
+        originalName: String,
+        size: Number,
+        type: String,
+        path: String,
+        url: String,
+        uploadedAt: {
+            type: Date,
+            default: Date.now
+        },
+        uploadedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        }
+    }],
+    links: [{
+        id: String,
+        title: String,
+        url: String,
+        description: String,
+        addedAt: {
+            type: Date,
+            default: Date.now
+        },
+        addedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        }
+    }],
     endDate: {
         type: Date
     }

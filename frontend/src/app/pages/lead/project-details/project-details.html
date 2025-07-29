@@ -26,13 +26,30 @@
 
         <div class="mt-6 border-t pt-4">
           <h4 class="text-md font-medium text-gray-800">Team</h4>
+          
+          <!-- Debug information (remove in production) -->
+          <div class="mt-1 text-xs text-gray-400">
+            Project Team ID: {{ project.team }} | 
+            Team Members Found: {{ projectTeamMembers.length }} |
+            Teams Loaded: {{ teams.length }}
+          </div>
+          
           <div class="mt-2 flex flex-wrap gap-4">
-            <div *ngFor="let member of projectTeamMembers" class="flex items-center space-x-2">
-              <img [src]="member.profileImg || 'assets/default-avatar.png'" class="h-8 w-8 rounded-full object-cover">
+            <div *ngFor="let member of projectTeamMembers" class="flex items-center space-x-2 bg-gray-50 p-2 rounded-md">
+              <img 
+                [src]="member.profileImg || '/assets/user-images/default-avatar.png'" 
+                [alt]="member.name"
+                class="h-8 w-8 rounded-full object-cover"
+                onerror="this.src='/assets/user-images/default-avatar.png'">
               <div>
                   <p class="text-sm font-medium">{{ member.name }}</p>
                   <p class="text-xs text-gray-500">{{ member.role | titlecase }}</p>
               </div>
+            </div>
+            
+            <!-- Show message when no team members found -->
+            <div *ngIf="projectTeamMembers.length === 0" class="text-sm text-gray-500 italic">
+              No team members found for this project.
             </div>
           </div>
         </div>

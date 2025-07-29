@@ -19,7 +19,16 @@ const {
   getLeadSprints,
   updateSprint
 } = require('../controllers/leadController');
+const {
+  // Import task file management methods from taskController
+  uploadTaskRequirementFiles,
+  deleteTaskRequirementFile,
+  addTaskRequirementLink,
+  deleteTaskRequirementLink,
+  reviewTask
+} = require('../controllers/taskController');
 const { protect, authorize } = require('../middleware/authMiddleware');
+const uploadMiddleware = require('../middleware/uploadMiddleware');
 
 // All routes are protected and require team lead role
 router.use(protect);
@@ -56,6 +65,20 @@ router.route('/tasks')
 router.route('/tasks/:id')
   .put(updateTask)      // Update existing task
   .delete(deleteTask);  // Delete task
+
+// Task requirement files management (Team Lead)
+router.post('/tasks/:id/requirement-files', 
+    uploadMiddleware.uploadMultiple,
+    uploadTaskRequirementFiles
+);
+router.delete('/tasks/:id/requirement-files/:fileId', deleteTaskRequirementFile);
+
+// Task requirement links management (Team Lead)
+router.post('/tasks/:id/requirement-links', addTaskRequirementLink);
+router.delete('/tasks/:id/requirement-links/:linkId', deleteTaskRequirementLink);
+
+// Task review (Team Lead)
+router.put('/tasks/:id/review', reviewTask);
 
 // Sprint management routes
 router.get('/sprints', getLeadSprints);           // Get sprints for lead's projects

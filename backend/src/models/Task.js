@@ -29,8 +29,8 @@ const TaskSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['todo', 'in-progress', 'done', 'pending'],
-        default: 'todo'
+        enum: ['to-do', 'in-progress', 'review', 'completed', 'pending'],
+        default: 'to-do'
     },
     priority: {
         type: String,
@@ -78,7 +78,145 @@ const TaskSchema = new mongoose.Schema({
             type: Date,
             default: Date.now
         }
-    }]
+    }],
+    
+    // Enhanced file management for task requirements
+    requirementFiles: [{
+        id: {
+            type: String,
+            required: true
+        },
+        name: {
+            type: String,
+            required: true
+        },
+        filename: String,
+        originalName: String,
+        size: Number,
+        type: String,
+        path: String,
+        url: String,
+        uploadedAt: {
+            type: Date,
+            default: Date.now
+        },
+        uploadedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        }
+    }],
+    
+    // Links for task requirements
+    requirementLinks: [{
+        id: {
+            type: String,
+            required: true
+        },
+        title: {
+            type: String,
+            required: true
+        },
+        url: {
+            type: String,
+            required: true
+        },
+        description: String,
+        addedAt: {
+            type: Date,
+            default: Date.now
+        },
+        addedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        }
+    }],
+    
+    // Files uploaded by team member for task completion
+    completionFiles: [{
+        id: {
+            type: String,
+            required: true
+        },
+        name: {
+            type: String,
+            required: true
+        },
+        filename: String,
+        originalName: String,
+        size: Number,
+        type: String,
+        path: String,
+        url: String,
+        uploadedAt: {
+            type: Date,
+            default: Date.now
+        },
+        uploadedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        }
+    }],
+    
+    // Links for task completion documentation
+    completionLinks: [{
+        id: {
+            type: String,
+            required: true
+        },
+        title: {
+            type: String,
+            required: true
+        },
+        url: {
+            type: String,
+            required: true
+        },
+        description: String,
+        addedAt: {
+            type: Date,
+            default: Date.now
+        },
+        addedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        }
+    }],
+    
+    // Task workflow tracking
+    readBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    readAt: {
+        type: Date,
+        default: null
+    },
+    
+    completedAt: {
+        type: Date,
+        default: null
+    },
+    
+    reviewedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    reviewedAt: {
+        type: Date,
+        default: null
+    },
+    
+    reviewNotes: {
+        type: String,
+        trim: true,
+        default: ''
+    }
 }, {
     timestamps: true // Adds createdAt and updatedAt automatically
 });

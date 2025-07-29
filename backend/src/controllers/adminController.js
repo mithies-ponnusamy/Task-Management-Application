@@ -2,13 +2,70 @@ const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 const Team = require('../models/Team');
 const Counter = require('../models/Counter');
+const Task = require('../models/Task');
 
 // @desc    Get all users
 // @route   GET /api/admin/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({}).select('-password');
+  const users = await User.find({}).select('-password').populate('team', 'name department');
   res.json(users);
+});
+
+// @desc    Get user by ID
+// @route   GET /api/admin/users/:id
+// @access  Private/Admin
+const getUserById = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id)
+    .select('-password')
+    .populate('team', 'name department');
+  
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+  
+  res.json(user);
+});
+
+// @desc    Get all tasks
+// @route   GET /api/admin/tasks
+// @access  Private/Admin
+const getAllTasks = asyncHandler(async (req, res) => {
+  const { projectId, sprintId, status, assignee, team } = req.query;
+  
+  // Build filter object
+  const filter = {};
+  
+  if (projectId) filter.project = projectId;
+  if (sprintId) filter.sprint = sprintId;
+  if (status) filter.status = status;
+  if (assignee) filter.assignee = assignee;
+  
+  const tasks = await Task.find(filter)
+    .populate('assignee', 'name email profileImg team')
+    .populate('project', 'name team')
+    .populate('sprint', 'name status startDate endDate')
+    .populate('createdBy', 'name email')
+    .populate({
+      path: 'assignee',
+      populate: {
+        path: 'team',
+        select: 'name'
+      }
+    })
+    .sort({ createdAt: -1 });
+
+  // If team filter is provided, filter by team
+  let filteredTasks = tasks;
+  if (team) {
+    filteredTasks = tasks.filter(task => 
+      task.assignee?.team?._id?.toString() === team ||
+      task.project?.team?.toString() === team
+    );
+  }
+
+  res.json(filteredTasks);
 });
 
 // @desc    Create a user
@@ -181,6 +238,8 @@ const deleteUser = asyncHandler(async (req, res) => {
 
 module.exports = {
   getUsers,
+  getUserById,
+  getAllTasks,
   createUser,
   updateUser,
   deleteUser

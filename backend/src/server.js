@@ -19,6 +19,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
 // Request logger
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path} - Body:`, req.body);

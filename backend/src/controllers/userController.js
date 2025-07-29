@@ -129,7 +129,7 @@ const loginUser = asyncHandler(async (req, res) => {
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
     // req.user is populated by `protect` middleware
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id).select('-password').populate('team', 'name department');
 
     if (user) {
         res.json({
@@ -143,7 +143,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
             gender: user.gender,
             dob: user.dob,
             department: user.department,
-            team: user.team ? user.team.toString() : null, // Ensure team is ID string or null
+            team: user.team, // Now populated with team name and department
             status: user.status,
             employeeType: user.employeeType,
             location: user.location,
