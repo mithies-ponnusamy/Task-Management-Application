@@ -35,8 +35,10 @@ export class Backlogs implements OnInit, OnDestroy {
   // Modals & State
   isViewModalOpen = false;
   isEditModalOpen = false;
+  isViewTasksModalOpen = false;
   currentTask: Task | null = null;
   currentSprint: Sprint | null = null;
+  currentSprintTasks: Task[] = [];
 
   // Filters
   filters = {
@@ -60,8 +62,47 @@ export class Backlogs implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadInitialData();
-    this.taskSubscription = this.authService.leadGetTasks().subscribe((tasks: Task[]) => {
-        this.allTasks = tasks;
+    this.taskSubscription = this.authService.leadGetTasks().subscribe((tasks: any[]) => {
+        console.log('=== BACKLOGS TASK MAPPING DEBUG ===');
+        console.log('Raw tasks from API:', tasks.slice(0, 2));
+        
+        // Map backend task fields to frontend expectations
+        this.allTasks = tasks.map(task => {
+          // Extract sprint ID first
+          const extractedSprintId = task.sprint ? (
+            typeof task.sprint === 'object' 
+              ? (task.sprint._id || task.sprint.id) 
+              : task.sprint
+          ) : null;
+          
+          const mappedTask = {
+            ...task,
+            // Explicitly set the mapped values AFTER the spread to override any existing properties
+            sprintId: extractedSprintId,
+            assigneeId: task.assignee ? (typeof task.assignee === 'object' ? task.assignee._id || task.assignee.id : task.assignee) : null,
+            projectId: task.project ? (typeof task.project === 'object' ? task.project._id || task.project.id : task.project) : null
+          };
+          
+          if (task.sprint) {
+            console.log(`Task "${task.title}" sprint mapping:`, {
+              originalSprint: task.sprint,
+              sprintType: typeof task.sprint,
+              extractedSprintId: extractedSprintId,
+              finalSprintId: mappedTask.sprintId,
+              sprintIdType: typeof mappedTask.sprintId,
+              sprintKeys: typeof task.sprint === 'object' ? Object.keys(task.sprint) : 'n/a'
+            });
+          }
+          
+          return mappedTask;
+        });
+        
+        console.log('Mapped tasks with sprint IDs:', this.allTasks.map(t => ({ 
+          title: t.title, 
+          sprintId: t.sprintId, 
+          sprintIdType: typeof t.sprintId,
+          originalSprint: tasks.find(orig => orig._id === t.id || orig.id === t.id)?.sprint 
+        })));
         this.applyFilters();
     });
   }
@@ -133,12 +174,23 @@ export class Backlogs implements OnInit, OnDestroy {
               ? sprint.project 
               : (sprint.project as any)?._id || (sprint.project as any)?.id
           };
-          console.log('Backlogs: Processed sprint:', {
-            name: processed.name, 
-            sprintId: processed.id,
-            projectId: processed.projectId,
-            originalProject: sprint.project
+          
+          console.log(`Sprint "${processed.name}" ID mapping:`, {
+            originalId: sprint.id,
+            originalSprintObj: { _id: (sprint as any)._id, id: sprint.id },
+            processedId: processed.id,
+            idType: typeof processed.id
           });
+          
+          // Debug: Log sprint and team data
+          if (sprint.project && typeof sprint.project === 'object') {
+            console.log(`Sprint "${processed.name}":`, {
+              project: (sprint.project as any).name,
+              team: (sprint.project as any).team?.name,
+              teamLead: (sprint.project as any).team?.lead?.name
+            });
+          }
+          
           return processed;
         }).filter(sprint => {
           // Filter out sprints without valid project references
@@ -177,7 +229,12 @@ export class Backlogs implements OnInit, OnDestroy {
   onProjectFilterChange(): void {
       console.log('Backlogs: Project filter changed to:', this.filters.projectId);
       console.log('Backlogs: Available projects:', this.projects.map(p => ({ id: p.id, name: p.name })));
-      console.log('Backlogs: Available sprints:', this.sprints.map(s => ({ name: s.name, projectId: s.projectId })));
+      console.log('Backlogs: Available sprints:', this.sprints.map(s => ({ 
+        name: s.name, 
+        id: s.id, 
+        idType: typeof s.id,
+        projectId: s.projectId 
+      })));
       
       if (this.filters.projectId === 'all') {
           const projectIds = this.projects.map(p => p.id);
@@ -294,8 +351,54 @@ export class Backlogs implements OnInit, OnDestroy {
   }
 
   viewSprintTasks(sprint: Sprint): void {
-    // Navigation to tasks page with sprint filter
-    console.log('Viewing sprint tasks:', sprint);
+    console.log('=== VIEW SPRINT TASKS DEBUG ===');
+    console.log('Viewing sprint tasks for:', sprint.name);
+    console.log('Sprint ID being searched:', sprint.id, typeof sprint.id);
+    console.log('All available tasks count:', this.allTasks.length);
+    console.log('All available tasks detailed:', this.allTasks.map(t => ({ 
+      title: t.title, 
+      sprintId: t.sprintId, 
+      sprintIdType: typeof t.sprintId,
+      hasSprintId: !!t.sprintId,
+      keys: Object.keys(t).filter(k => k.includes('sprint'))
+    })));
+    
+    this.currentSprint = { ...sprint };
+    
+    // Filter tasks for this specific sprint - use multiple comparison approaches
+    this.currentSprintTasks = this.allTasks.filter(task => {
+      if (!task.sprintId) {
+        console.log(`Task "${task.title}": No sprintId, skipping`);
+        return false;
+      }
+      
+      const taskSprintId = task.sprintId;
+      const sprintId = sprint.id;
+      
+      // Convert both to strings for comparison (handles ObjectId vs String)
+      const taskSprintStr = String(taskSprintId).trim();
+      const sprintIdStr = String(sprintId).trim();
+      
+      const matches = taskSprintStr === sprintIdStr;
+      
+      console.log(`Task "${task.title}": sprintId="${taskSprintStr}" === sprint.id="${sprintIdStr}" ? ${matches}`);
+      return matches;
+    });
+    
+    console.log('Found tasks for sprint:', this.currentSprintTasks.length);
+    if (this.currentSprintTasks.length === 0) {
+      console.log('🔍 No tasks found. Debug info:');
+      console.log('Sprint ID to match:', String(sprint.id));
+      console.log('Available task sprint IDs:', this.allTasks.map(t => String(t.sprintId || 'null')));
+    }
+    
+    this.isViewTasksModalOpen = true;
+  }
+
+  closeTasksModal(): void {
+    this.isViewTasksModalOpen = false;
+    this.currentSprint = null;
+    this.currentSprintTasks = [];
   }
 
   getProjectById(projectId: string | undefined): Project | undefined {
@@ -333,7 +436,7 @@ export class Backlogs implements OnInit, OnDestroy {
   getSprintTaskProgress(sprintId: string): number {
     const sprintTasks = this.allTasks.filter(task => task.sprintId === sprintId);
     if (sprintTasks.length === 0) return 0;
-    const completedTasks = sprintTasks.filter(task => task.status === 'done');
+    const completedTasks = sprintTasks.filter(task => task.status === 'completed');
     return Math.round((completedTasks.length / sprintTasks.length) * 100);
   }
 
@@ -341,15 +444,28 @@ export class Backlogs implements OnInit, OnDestroy {
     return this.allTasks.filter(task => task.sprintId === sprintId).length;
   }
 
-  getTeamName(teamId: string | undefined): string {
-    // For now, return the current user's team or fetch team data
-    return teamId || 'Current Team';
+  getTeamName(sprint: Sprint): string {
+    // Try to get team name from populated project data
+    if (sprint && sprint.project && typeof sprint.project === 'object') {
+      const project = sprint.project as any;
+      if (project.team && typeof project.team === 'object') {
+        return project.team.name || 'Team';
+      }
+    }
+    
+    return 'No Team';
   }
 
-  getTeamLeadName(teamId: string | undefined): string {
-    // For now, return current user name or fetch team lead
-    const currentUser = this.userService.getCurrentUser();
-    return currentUser?.name || 'Team Lead';
+  getTeamLeadName(sprint: Sprint): string {
+    // Try to get team lead name from populated project data
+    if (sprint && sprint.project && typeof sprint.project === 'object') {
+      const project = sprint.project as any;
+      if (project.team && typeof project.team === 'object' && project.team.lead) {
+        return project.team.lead.name || 'Team Lead';
+      }
+    }
+    
+    return 'Team Lead';
   }
 
   // Utility methods

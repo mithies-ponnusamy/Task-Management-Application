@@ -463,9 +463,9 @@ export class UserManagement implements OnInit, OnDestroy {
 
           this.isSubmitting = false;
           this.closeModals();
-          this.applyFilters();
           
-          // Refresh teams data if team assignment changed
+          // Refresh both users and teams data to ensure proper population
+          this.loadUsers();
           this.loadTeams();
           
           this.cdr.detectChanges();
@@ -620,6 +620,10 @@ export class UserManagement implements OnInit, OnDestroy {
           this.isSubmitting = false;
           this.showAddTeamModal = false;
           this.filterTeams();
+          
+          // Refresh users data to update team assignments
+          this.loadUsers();
+          
           this.toastService.show(`Team ${createdTeam.name} created successfully`, 'success');
         },
         error: (err) => {
@@ -653,6 +657,10 @@ export class UserManagement implements OnInit, OnDestroy {
           this.isSubmitting = false;
           this.showAddSubTeamModal = false;
           this.filterTeams();
+          
+          // Refresh users data to update team assignments
+          this.loadUsers();
+          
           this.toastService.show(`Sub-team ${createdSubTeam.name} created successfully`, 'success');
         },
         error: (err) => {
@@ -704,6 +712,10 @@ export class UserManagement implements OnInit, OnDestroy {
         this.isSubmitting = false;
         this.closeModals();
         this.filterTeams();
+        
+        // Refresh users data to update team assignments
+        this.loadUsers();
+        
         this.toastService.show(`Team ${updatedTeam.name} updated successfully`, 'success');
       },
       error: (err) => {
@@ -1216,6 +1228,29 @@ export class UserManagement implements OnInit, OnDestroy {
     if (!id) return 'None';
     const team = this.teams.find(team => (team._id || team.id) === id);
     return team ? team.name : 'Unknown Team';
+  }
+
+  // Gets team name for user, using teamName field if available, otherwise lookup by ID
+  getUserTeamName(user: User): string {
+    // First priority: use the teamName field if it exists (from populated API response)
+    if (user.teamName) {
+      return user.teamName;
+    }
+    
+    // Second priority: lookup team by ID in teams array
+    if (user.team) {
+      const team = this.teams.find(team => 
+        (team._id || team.id) === user.team || 
+        team.id === user.team || 
+        team._id === user.team
+      );
+      if (team) {
+        return team.name;
+      }
+    }
+    
+    // Fallback
+    return user.team ? 'Unknown Team' : 'None';
   }
 
   // Opens the add sub-team modal and pre-fills parent team information.

@@ -15,6 +15,11 @@ const {
   getLeadTasks,
   updateTask,
   deleteTask,
+  // Task workflow
+  markTaskAsRead,
+  markTaskAsCompleted,
+  acceptTask,
+  rejectTask,
   // Sprint management
   getLeadSprints,
   updateSprint
@@ -65,6 +70,12 @@ router.route('/tasks')
 router.route('/tasks/:id')
   .put(updateTask)      // Update existing task
   .delete(deleteTask);  // Delete task
+
+// Task workflow routes
+router.put('/tasks/:id/mark-read', markTaskAsRead);        // Team member marks task as read
+router.put('/tasks/:id/mark-completed', markTaskAsCompleted); // Team member marks task as completed
+router.put('/tasks/:id/accept', acceptTask);              // Team lead accepts task
+router.put('/tasks/:id/reject', rejectTask);              // Team lead rejects task
 
 // Task requirement files management (Team Lead)
 router.post('/tasks/:id/requirement-files', 

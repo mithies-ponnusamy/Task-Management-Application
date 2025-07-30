@@ -71,7 +71,7 @@ const getTeamById = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 // teamController.js - Update createTeam method
 const createTeam = asyncHandler(async (req, res) => {
-  const { name, department, lead, description, parentTeam } = req.body;
+  const { name, department, lead, description, parentTeam, members } = req.body;
 
   if (!name || !department) {
     res.status(400);
@@ -114,6 +114,33 @@ const createTeam = asyncHandler(async (req, res) => {
         $addToSet: { subTeams: team._id }
       });
     }
+
+    // Update lead's role and team if a lead is assigned
+    if (lead) {
+      await User.findByIdAndUpdate(lead, {
+        team: team._id,
+        role: 'team-lead'
+      });
+      
+      // Add lead to team members
+      team.members.push(lead);
+    }
+
+    // Add additional members to the team and update their team assignments
+    if (members && Array.isArray(members)) {
+      for (const memberId of members) {
+        // Only add if not already the lead
+        if (memberId !== lead) {
+          await User.findByIdAndUpdate(memberId, {
+            team: team._id
+          });
+          team.members.push(memberId);
+        }
+      }
+    }
+
+    // Save team with all members
+    await team.save();
 
     const populatedTeam = await Team.findById(team._id)
       .populate('lead', 'name email')
@@ -173,8 +200,11 @@ const updateTeam = asyncHandler(async (req, res) => {
 
   // Update user's team field when lead changes
   if (newLeadId && (!oldLeadId || oldLeadId.toString() !== newLeadId.toString())) {
-    // Set new lead's team field
-    await User.findByIdAndUpdate(newLeadId, { team: team._id });
+    // Set new lead's team field and role
+    await User.findByIdAndUpdate(newLeadId, { 
+      team: team._id,
+      role: 'team-lead'
+    });
     
     // Add lead to team members if not already there
     if (!team.members.some(memberId => memberId.toString() === newLeadId.toString())) {
@@ -183,11 +213,20 @@ const updateTeam = asyncHandler(async (req, res) => {
     }
   }
 
-  // Remove old lead's team field if they're no longer in members
+  // Remove old lead's team field and revert role if they're no longer in members
   if (oldLeadId && newLeadId && oldLeadId.toString() !== newLeadId.toString()) {
     const isOldLeadStillMember = team.members.some(memberId => memberId.toString() === oldLeadId.toString());
     if (!isOldLeadStillMember) {
-      await User.findByIdAndUpdate(oldLeadId, { $unset: { team: "" } });
+      // Remove team and revert role to 'user'
+      await User.findByIdAndUpdate(oldLeadId, { 
+        $unset: { team: "" },
+        role: 'user'
+      });
+    } else {
+      // If old lead is still a member, just revert their role to 'user'
+      await User.findByIdAndUpdate(oldLeadId, { 
+        role: 'user'
+      });
     }
   }
 
@@ -219,11 +258,18 @@ const deleteTeam = asyncHandler(async (req, res) => {
     });
   }
 
-  // Remove team from users' team field
+  // Remove team from users' team field and update team lead's role
   await User.updateMany(
     { team: team._id },
     { $unset: { team: "" } }
   );
+
+  // If there's a team lead, revert their role to 'user'
+  if (team.lead) {
+    await User.findByIdAndUpdate(team.lead, {
+      role: 'user'
+    });
+  }
 
   // Delete the team
   await team.deleteOne();
@@ -288,11 +334,21 @@ const removeTeamMembers = asyncHandler(async (req, res) => {
   );
   await team.save();
 
-  // Remove team from users
+  // Check if team lead is being removed
+  const isLeadBeingRemoved = team.lead && memberIds.includes(team.lead.toString());
+  
+  // Remove team from users and handle role changes
   await User.updateMany(
     { _id: { $in: memberIds } },
     { $unset: { team: "" } }
   );
+
+  // If team lead is being removed, revert their role to 'user' and clear team lead
+  if (isLeadBeingRemoved) {
+    await User.findByIdAndUpdate(team.lead, { role: 'user' });
+    team.lead = null;
+    await team.save();
+  }
 
   // Populate the response
   const populatedTeam = await Team.findById(team._id)

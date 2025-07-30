@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { registerUser, loginUser, getUserProfile, updateUserProfile } = require('../controllers/userController');
+const { 
+  markTaskAsRead, 
+  markTaskAsCompleted 
+} = require('../controllers/leadController');
 const { protect } = require('../middleware/authMiddleware');
 const Project = require('../models/Project');
 const Task = require('../models/Task');
@@ -48,5 +52,11 @@ router.get('/my-tasks', protect, async (req, res) => {
     res.status(500).json({ message: 'Error fetching tasks', error: error.message });
   }
 });
+
+// Task workflow routes for team members
+router.put('/tasks/:id/mark-read', protect, markTaskAsRead);        // Team member marks task as read
+router.put('/tasks/:id/mark-completed', protect, markTaskAsCompleted); // Team member marks task as completed
+
+module.exports = router;
 
 module.exports = router;

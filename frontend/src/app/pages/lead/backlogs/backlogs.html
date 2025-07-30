@@ -68,8 +68,8 @@
               </div>
             </td>
             <td class="px-6 py-4 text-sm">
-              <div class="text-gray-900">{{getTeamName(sprint.teamId)}}</div>
-              <div class="text-xs text-gray-500">Lead: {{getTeamLeadName(sprint.teamId)}}</div>
+              <div class="text-gray-900">{{getTeamName(sprint)}}</div>
+              <div class="text-xs text-gray-500">Lead: {{getTeamLeadName(sprint)}}</div>
             </td>
             <td class="px-6 py-4 text-right">
                 <div class="flex items-center justify-end space-x-3 text-gray-500">
@@ -203,4 +203,115 @@
             <button type="submit" [disabled]="!editTaskForm.valid" class="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400">Save Changes</button>
         </div>
     </form>
+</div>
+
+<!-- Sprint Tasks Modal -->
+<div *ngIf="isViewTasksModalOpen && currentSprint" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+    <div class="p-6">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <h3 class="text-lg font-medium text-gray-900">Tasks in {{currentSprint.name}}</h3>
+          <p class="text-sm text-gray-500">{{getProjectName(currentSprint.projectId!)}} • {{currentSprintTasks.length}} tasks</p>
+        </div>
+        <button (click)="closeTasksModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+        <!-- Tasks Table -->
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignee</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attachments</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr *ngFor="let task of currentSprintTasks" class="hover:bg-gray-50">
+                <td class="px-6 py-4">
+                  <div class="text-sm font-medium text-gray-900">{{task.title}}</div>
+                  <div class="text-sm text-gray-500">{{task.description}}</div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900">
+                  {{getAssigneeName(task.assigneeId)}}
+                </td>
+                <td class="px-6 py-4">
+                  <span class="px-2 py-1 text-xs font-semibold rounded-full" [ngClass]="getStatusClass(task.status)">
+                    {{task.status | titlecase}}
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <span class="text-sm font-medium" [ngClass]="getPriorityClass(task.priority)">
+                    {{task.priority | titlecase}}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900">
+                  {{task.dueDate | date:'MMM d, y'}}
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-xs space-y-1">
+                    <!-- Requirement Files -->
+                    <div *ngIf="task.requirementFiles && task.requirementFiles.length > 0">
+                      <span class="font-medium text-blue-600">Requirements:</span>
+                      <div *ngFor="let file of task.requirementFiles" class="flex items-center space-x-1">
+                        <i class="fas fa-file text-blue-500"></i>
+                        <a [href]="file.url" target="_blank" class="text-blue-600 hover:underline">{{file.name}}</a>
+                      </div>
+                    </div>
+                    
+                    <!-- Requirement Links -->
+                    <div *ngIf="task.requirementLinks && task.requirementLinks.length > 0">
+                      <span class="font-medium text-green-600">Req. Links:</span>
+                      <div *ngFor="let link of task.requirementLinks" class="flex items-center space-x-1">
+                        <i class="fas fa-link text-green-500"></i>
+                        <a [href]="link.url" target="_blank" class="text-green-600 hover:underline">{{link.title}}</a>
+                      </div>
+                    </div>
+                    
+                    <!-- Completion Files -->
+                    <div *ngIf="task.completionFiles && task.completionFiles.length > 0">
+                      <span class="font-medium text-purple-600">Completion:</span>
+                      <div *ngFor="let file of task.completionFiles" class="flex items-center space-x-1">
+                        <i class="fas fa-file-check text-purple-500"></i>
+                        <a [href]="file.url" target="_blank" class="text-purple-600 hover:underline">{{file.name}}</a>
+                      </div>
+                    </div>
+                    
+                    <!-- Completion Links -->
+                    <div *ngIf="task.completionLinks && task.completionLinks.length > 0">
+                      <span class="font-medium text-orange-600">Comp. Links:</span>
+                      <div *ngFor="let link of task.completionLinks" class="flex items-center space-x-1">
+                        <i class="fas fa-external-link text-orange-500"></i>
+                        <a [href]="link.url" target="_blank" class="text-orange-600 hover:underline">{{link.title}}</a>
+                      </div>
+                    </div>
+                    
+                    <span *ngIf="(!task.requirementFiles || task.requirementFiles.length === 0) && 
+                                (!task.requirementLinks || task.requirementLinks.length === 0) && 
+                                (!task.completionFiles || task.completionFiles.length === 0) && 
+                                (!task.completionLinks || task.completionLinks.length === 0)" 
+                          class="text-gray-400">No attachments</span>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="currentSprintTasks.length === 0">
+                <td colspan="6" class="text-center py-10 text-gray-500">
+                  No tasks found in this sprint.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>      <div class="mt-6 flex justify-end">
+        <button (click)="closeTasksModal()" class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
 </div>

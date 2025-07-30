@@ -202,6 +202,12 @@ const TaskSchema = new mongoose.Schema({
         default: null
     },
     
+    // Workflow tracking fields
+    readAt: {
+        type: Date,
+        default: null
+    },
+    
     reviewedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

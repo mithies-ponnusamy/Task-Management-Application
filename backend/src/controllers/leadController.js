@@ -819,13 +819,29 @@ const getLeadSprints = asyncHandler(async (req, res) => {
     console.log('Sprint filter:', JSON.stringify(sprintFilter));
 
     const sprints = await Sprint.find(sprintFilter)
-      .populate('project', 'name')
+      .populate('project', 'name team')
+      .populate({
+        path: 'project',
+        populate: {
+          path: 'team',
+          select: 'name lead',
+          populate: {
+            path: 'lead',
+            select: 'name email'
+          }
+        }
+      })
       .populate('tasks')
       .sort({ startDate: -1 })
       .lean();
 
     console.log('Found sprints:', sprints.length);
-    console.log('Sprint details:', sprints.map(s => ({ name: s.name, project: s.project?.name })));
+    console.log('Sprint details:', sprints.map(s => ({ 
+      name: s.name, 
+      project: s.project?.name,
+      team: s.project?.team?.name,
+      teamLead: s.project?.team?.lead?.name
+    })));
 
     console.log('=== getLeadSprints SUCCESS ===');
     res.json(sprints);
@@ -884,6 +900,225 @@ const updateSprint = asyncHandler(async (req, res) => {
   res.json(updatedSprint);
 });
 
+// ================== TASK WORKFLOW MANAGEMENT ==================
+
+// @desc    Mark task as read (Team Member Action)
+// @route   PUT /api/lead/tasks/:id/mark-read
+// @access  Private/Team Member
+const markTaskAsRead = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  const task = await Task.findById(id).populate('assignee project');
+  if (!task) {
+    res.status(404);
+    throw new Error('Task not found');
+  }
+
+  // Check if user is the assignee
+  if (task.assignee._id.toString() !== user._id.toString()) {
+    res.status(403);
+    throw new Error('Only the assigned team member can mark task as read');
+  }
+
+  // Check if task is in 'to-do' status
+  if (task.status !== 'to-do') {
+    res.status(400);
+    throw new Error('Task can only be marked as read when in to-do status');
+  }
+
+  // Update task status and mark as read
+  const updatedTask = await Task.findByIdAndUpdate(
+    id,
+    {
+      status: 'in-progress',
+      readAt: new Date()
+    },
+    { new: true }
+  )
+    .populate('assignee', 'name email profileImg')
+    .populate('project', 'name')
+    .populate('sprint', 'name')
+    .populate('createdBy', 'name');
+
+  res.json({
+    message: 'Task marked as read and moved to in-progress',
+    task: updatedTask
+  });
+});
+
+// @desc    Mark task as completed (Team Member Action)
+// @route   PUT /api/lead/tasks/:id/mark-completed
+// @access  Private/Team Member
+const markTaskAsCompleted = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { completionFiles, completionLinks } = req.body;
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  const task = await Task.findById(id).populate('assignee project');
+  if (!task) {
+    res.status(404);
+    throw new Error('Task not found');
+  }
+
+  // Check if user is the assignee
+  if (task.assignee._id.toString() !== user._id.toString()) {
+    res.status(403);
+    throw new Error('Only the assigned team member can mark task as completed');
+  }
+
+  // Check if task is in 'in-progress' status
+  if (task.status !== 'in-progress') {
+    res.status(400);
+    throw new Error('Task can only be marked as completed when in in-progress status');
+  }
+
+  // Update task with completion files/links and change status
+  const updatedTask = await Task.findByIdAndUpdate(
+    id,
+    {
+      status: 'review',
+      completedAt: new Date(),
+      completionFiles: completionFiles || [],
+      completionLinks: completionLinks || []
+    },
+    { new: true }
+  )
+    .populate('assignee', 'name email profileImg')
+    .populate('project', 'name')
+    .populate('sprint', 'name')
+    .populate('createdBy', 'name');
+
+  res.json({
+    message: 'Task marked as completed and moved to review',
+    task: updatedTask
+  });
+});
+
+// @desc    Review and accept task (Team Lead Action)
+// @route   PUT /api/lead/tasks/:id/accept
+// @access  Private/Lead
+const acceptTask = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reviewNotes } = req.body;
+  const lead = await User.findById(req.user._id);
+
+  if (!lead) {
+    res.status(404);
+    throw new Error('Lead not found');
+  }
+
+  const task = await Task.findById(id).populate('project');
+  if (!task) {
+    res.status(404);
+    throw new Error('Task not found');
+  }
+
+  // Check if lead has permission to review this task
+  const hasPermission = task.project.lead?.toString() === lead._id.toString() || 
+                       (lead.team && task.project.team?.toString() === lead.team.toString());
+
+  if (!hasPermission) {
+    res.status(403);
+    throw new Error('Not authorized to review this task');
+  }
+
+  // Check if task is in 'review' status
+  if (task.status !== 'review') {
+    res.status(400);
+    throw new Error('Task can only be accepted when in review status');
+  }
+
+  // Update task status to completed
+  const updatedTask = await Task.findByIdAndUpdate(
+    id,
+    {
+      status: 'completed',
+      reviewedBy: lead._id,
+      reviewedAt: new Date(),
+      reviewNotes: reviewNotes || ''
+    },
+    { new: true }
+  )
+    .populate('assignee', 'name email profileImg')
+    .populate('project', 'name')
+    .populate('sprint', 'name')
+    .populate('createdBy', 'name')
+    .populate('reviewedBy', 'name');
+
+  res.json({
+    message: 'Task accepted and marked as completed',
+    task: updatedTask
+  });
+});
+
+// @desc    Review and reject task (Team Lead Action)
+// @route   PUT /api/lead/tasks/:id/reject
+// @access  Private/Lead
+const rejectTask = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reviewNotes } = req.body;
+  const lead = await User.findById(req.user._id);
+
+  if (!lead) {
+    res.status(404);
+    throw new Error('Lead not found');
+  }
+
+  const task = await Task.findById(id).populate('project');
+  if (!task) {
+    res.status(404);
+    throw new Error('Task not found');
+  }
+
+  // Check if lead has permission to review this task
+  const hasPermission = task.project.lead?.toString() === lead._id.toString() || 
+                       (lead.team && task.project.team?.toString() === lead.team.toString());
+
+  if (!hasPermission) {
+    res.status(403);
+    throw new Error('Not authorized to review this task');
+  }
+
+  // Check if task is in 'review' status
+  if (task.status !== 'review') {
+    res.status(400);
+    throw new Error('Task can only be rejected when in review status');
+  }
+
+  // Update task status back to in-progress
+  const updatedTask = await Task.findByIdAndUpdate(
+    id,
+    {
+      status: 'in-progress',
+      reviewedBy: lead._id,
+      reviewedAt: new Date(),
+      reviewNotes: reviewNotes || ''
+    },
+    { new: true }
+  )
+    .populate('assignee', 'name email profileImg')
+    .populate('project', 'name')
+    .populate('sprint', 'name')
+    .populate('createdBy', 'name')
+    .populate('reviewedBy', 'name');
+
+  res.json({
+    message: 'Task rejected and moved back to in-progress',
+    task: updatedTask
+  });
+});
+
 module.exports = {
   getLeadProfile,
   updateLeadProfile,
@@ -899,6 +1134,11 @@ module.exports = {
   getLeadTasks,
   updateTask,
   deleteTask,
+  // Task workflow
+  markTaskAsRead,
+  markTaskAsCompleted,
+  acceptTask,
+  rejectTask,
   // Sprint management
   getLeadSprints,
   updateSprint

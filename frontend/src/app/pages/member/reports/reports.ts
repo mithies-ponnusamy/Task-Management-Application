@@ -88,8 +88,8 @@ export class Reports implements OnInit {
     if (!project) return;
     
     this.taskService.getTasksByProject(this.reportData.projectId).subscribe((tasks: Task[]) => {
-      const completedTasks = tasks.filter(t => t.status === 'done').length;
-      
+      const completedTasks = tasks.filter(t => t.status === 'completed').length;
+
       this.generatedReport = {
         projectName: project.name,
         startDate: new Date(this.reportData.startDate),
@@ -99,7 +99,7 @@ export class Reports implements OnInit {
         progress: project.progress,
         tasks: this.reportData.includeTasks ? tasks.map(t => ({
           ...t,
-          progress: t.status === 'done' ? 100 : (t.status === 'in-progress' ? 50 : 0)
+          progress: t.status === 'completed' ? 100 : (t.status === 'in-progress' ? 50 : 0)
         })) : [],
         comments: this.reportData.includeComments ? [
           {

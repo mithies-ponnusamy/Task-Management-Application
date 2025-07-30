@@ -82,7 +82,7 @@ export class Dashboard implements OnInit, OnDestroy {
     );
 
     this.completedTasks$ = this.allTasks$.pipe(
-      map(tasks => tasks.filter(t => t.status === 'done').length)
+      map(tasks => tasks.filter(t => t.status === 'completed').length)
     );
       
     this.inProgressTasks$ = this.allTasks$.pipe(
@@ -97,7 +97,7 @@ export class Dashboard implements OnInit, OnDestroy {
       map(tasks => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        return tasks.filter(t => new Date(t.dueDate) < today && t.status !== 'done').length;
+        return tasks.filter(t => new Date(t.dueDate) < today && t.status !== 'completed').length;
       })
     );
     
@@ -125,7 +125,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
         // Add task completion activities
         const completedTasks = tasks.filter(task => 
-          task.status === 'done' && task.completionDate
+          task.status === 'completed' && task.completionDate
         ).slice(0, 3);
 
         completedTasks.forEach(task => {
@@ -139,7 +139,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
         // Add deadline reminders for upcoming tasks
         const upcomingTasks = tasks.filter(task => {
-          if (!task.dueDate || task.status === 'done') return false;
+          if (!task.dueDate || task.status === 'completed') return false;
           const dueDate = new Date(task.dueDate);
           const today = new Date();
           const threeDaysFromNow = new Date();
@@ -164,7 +164,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
   private generateMockTasksCount(count: number): Task[] {
     const mockTasks: Task[] = [];
-    const statuses: ('todo' | 'in-progress' | 'review' | 'done')[] = ['todo', 'in-progress', 'review', 'done'];
+    const statuses: ('to-do' | 'in-progress' | 'review' | 'completed')[] = ['to-do', 'in-progress', 'review', 'completed'];
     const priorities: ('low' | 'medium' | 'high')[] = ['low', 'medium', 'high'];
     
     for (let i = 0; i < count; i++) {
@@ -184,7 +184,7 @@ export class Dashboard implements OnInit, OnDestroy {
         projectId: 'mock-project',
         project: 'Mock Project',
         createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
-        completionDate: randomStatus === 'done' ? new Date() : undefined
+        completionDate: randomStatus === 'completed' ? new Date() : undefined
       });
     }
     

@@ -31,18 +31,18 @@ export class Login {
   demoUsers = [
     {
       email: 'admin@genworx.ai',
-      password: '@admin123',
+      password: 'admin123',
       user: { email: 'admin@genworx.ai', role: 'ADMIN' }
     },
     {
-      email: 'mithiesoff@gmail.com',
-      password: '@Mithies2315',
-      user: { email: 'mithiesoff@gmail.com', role: 'LEAD' }
+      email: 'lead@genworx.com',
+      password: 'lead123',
+      user: { email: 'lead@genworx.com', role: 'LEAD' }
     },
     {
-      email: 'mithiesofficial@gmail.com',
-      password: '@Mithies2317',
-      user: { email: 'mithiesofficial@gmail.com', role: 'USER' }
+      email: 'member@genworx.com',
+      password: 'member123',
+      user: { email: 'member@genworx.com', role: 'USER' }
     }
   ];
 

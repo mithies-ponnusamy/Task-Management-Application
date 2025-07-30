@@ -140,12 +140,12 @@ export class Tasks implements OnInit, OnDestroy {
       
       // Update task status based on the new column
       const task = event.container.data[event.currentIndex];
-      let newStatus: 'todo' | 'in-progress' | 'review' | 'done';
-      
-      if (event.container.id.includes('todo')) newStatus = 'todo';
+      let newStatus: 'to-do' | 'in-progress' | 'review' | 'completed';
+
+      if (event.container.id.includes('todo')) newStatus = 'to-do';
       else if (event.container.id.includes('inProgress')) newStatus = 'in-progress';
       else if (event.container.id.includes('review')) newStatus = 'review';
-      else newStatus = 'done';
+      else newStatus = 'completed';
       
       task.status = newStatus;
       
@@ -221,7 +221,7 @@ export class Tasks implements OnInit, OnDestroy {
   isOverdue(dueDate: Date): boolean {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return new Date(dueDate) < today && this.selectedTask?.status !== 'done';
+    return new Date(dueDate) < today && this.selectedTask?.status !== 'completed';
   }
 
   formatDate(date: Date): string {
@@ -272,7 +272,7 @@ export class Tasks implements OnInit, OnDestroy {
   }
 
   updateTaskStatus(task: Task, newStatus: string): void {
-    task.status = newStatus as 'todo' | 'in-progress' | 'review' | 'done';
+    task.status = newStatus as 'to-do' | 'in-progress' | 'review' | 'completed';
     this.taskService.updateTask(task).subscribe();
   }
 

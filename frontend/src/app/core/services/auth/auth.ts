@@ -128,10 +128,14 @@ export class Auth {
       gender: apiUser.gender,
       dob: apiUser.dob,
       department: apiUser.department,
-      // Ensure 'team' is always a string ID or null, regardless of how backend sends it (populated or just ID)
-      team: (apiUser.team && typeof apiUser.team === 'object' && apiUser.team._id)
-              ? apiUser.team._id.toString()
+      // Handle team field - if it's populated with full object, extract ID but preserve team name for display
+      team: (apiUser.team && typeof apiUser.team === 'object')
+              ? (apiUser.team._id || apiUser.team.id || apiUser.team).toString()
               : (apiUser.team ? apiUser.team.toString() : null),
+      // Add teamName field to preserve populated team name
+      teamName: (apiUser.team && typeof apiUser.team === 'object' && apiUser.team.name)
+              ? apiUser.team.name
+              : null,
       employeeType: apiUser.employeeType,
       location: apiUser.location,
       address: apiUser.address,
@@ -990,6 +994,56 @@ export class Auth {
       catchError(error => {
         console.error('Failed to get tasks by assignee:', error);
         return throwError(() => new Error(error.error?.message || 'Failed to get tasks by assignee'));
+      })
+    );
+  }
+
+  // ================== TEAM LEAD TASK WORKFLOW ==================
+
+  // Accept task (Team Lead)
+  acceptTask(taskId: string, data: { reviewNotes?: string }): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/lead/tasks/${taskId}/accept`, data, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to accept task:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to accept task'));
+      })
+    );
+  }
+
+  // Reject task (Team Lead)
+  rejectTask(taskId: string, data: { reviewNotes: string }): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/lead/tasks/${taskId}/reject`, data, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to reject task:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to reject task'));
+      })
+    );
+  }
+
+  // Mark task as read (Team Lead)
+  leadMarkTaskAsRead(taskId: string): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/lead/tasks/${taskId}/mark-read`, {}, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to mark task as read:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to mark task as read'));
+      })
+    );
+  }
+
+  // Mark task as completed (Team Lead)
+  leadMarkTaskAsCompleted(taskId: string): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/lead/tasks/${taskId}/mark-completed`, {}, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to mark task as completed:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to mark task as completed'));
       })
     );
   }

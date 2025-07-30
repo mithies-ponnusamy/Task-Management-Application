@@ -39,13 +39,13 @@ export class Dashboard implements OnInit, OnDestroy {
   // Board Properties
   selectedProject: string = '';
   boardColumns: { id: string; title: string; tasks: Task[] }[] = [
-    { id: 'todo', title: 'To Do', tasks: [] },
+    { id: 'to-do', title: 'To Do', tasks: [] },
     { id: 'in-progress', title: 'In Progress', tasks: [] },
     { id: 'review', title: 'Review', tasks: [] },
     { id: 'done', title: 'Done', tasks: [] }
   ];
   filteredColumns: { id: string; title: string; tasks: Task[] }[] = [
-    { id: 'todo', title: 'To Do', tasks: [] },
+    { id: 'to-do', title: 'To Do', tasks: [] },
     { id: 'in-progress', title: 'In Progress', tasks: [] },
     { id: 'review', title: 'Review', tasks: [] },
     { id: 'done', title: 'Done', tasks: [] }
@@ -176,10 +176,10 @@ export class Dashboard implements OnInit, OnDestroy {
 
   loadStats(): void {
     this.stats = {
-      tasksCompleted: this.allTeamTasks.filter(t => t.status === 'done').length,
+      tasksCompleted: this.allTeamTasks.filter(t => t.status === 'completed').length,
       inProgress: this.allTeamTasks.filter(t => t.status === 'in-progress').length,
       pendingReview: this.allTeamTasks.filter(t => t.status === 'review').length,
-      overdue: this.allTeamTasks.filter(t => new Date(t.dueDate) < new Date() && t.status !== 'done').length
+      overdue: this.allTeamTasks.filter(t => new Date(t.dueDate) < new Date() && t.status !== 'completed').length
     };
   }
   
@@ -257,7 +257,7 @@ export class Dashboard implements OnInit, OnDestroy {
         event.currentIndex
       );
       const task: Task = event.item.data;
-      task.status = event.container.id as 'todo' | 'in-progress' | 'review' | 'done';
+      task.status = event.container.id as 'to-do' | 'in-progress' | 'review' | 'completed';
       this.taskService.updateTask(task);
     }
   }
@@ -300,7 +300,7 @@ export class Dashboard implements OnInit, OnDestroy {
   }
   
   getMemberOverdueTasks(memberName: string): number {
-    return this.getTasksForMember(memberName).filter(t => new Date(t.dueDate) < new Date() && t.status !== 'done').length;
+    return this.getTasksForMember(memberName).filter(t => new Date(t.dueDate) < new Date() && t.status !== 'completed').length;
   }
 
   getProfileImgForAssignee(assignee: string): string {

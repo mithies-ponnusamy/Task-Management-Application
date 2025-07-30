@@ -75,9 +75,9 @@
                  class="text-xs p-1 rounded truncate cursor-pointer shadow-sm"
                  [ngClass]="{
                    'bg-blue-100 text-blue-800': task.status === 'in-progress',
-                   'bg-green-100 text-green-800': task.status === 'done',
-                   'bg-red-100 text-red-800': isOverdue(task.dueDate) && task.status !== 'done',
-                   'bg-gray-100 text-gray-800': task.status === 'todo'
+                   'bg-green-100 text-green-800': task.status === 'completed',
+                   'bg-red-100 text-red-800': isOverdue(task.dueDate) && task.status !== 'completed',
+                   'bg-gray-100 text-gray-800': task.status === 'to-do'
                  }">
               {{ task.title }}
             </div>
@@ -107,9 +107,9 @@
                  class="absolute left-0 right-0 mx-1 p-1 rounded text-xs truncate cursor-pointer shadow-sm"
                  [ngClass]="{
                    'bg-blue-100 text-blue-800': task.status === 'in-progress',
-                   'bg-green-100 text-green-800': task.status === 'done',
-                   'bg-red-100 text-red-800': isOverdue(task.dueDate) && task.status !== 'done',
-                   'bg-gray-100 text-gray-800': task.status === 'todo'
+                   'bg-green-100 text-green-800': task.status === 'completed',
+                   'bg-red-100 text-red-800': isOverdue(task.dueDate) && task.status !== 'completed',
+                   'bg-gray-100 text-gray-800': task.status === 'to-do'
                  }"
                  [style.top]="getTaskPosition(task, hour)">
               {{ task.title }}
@@ -139,9 +139,9 @@
                class="absolute left-0 right-0 mx-2 p-2 rounded border-l-4 shadow-sm cursor-pointer"
                [ngClass]="{
                  'border-blue-400 bg-blue-50': task.status === 'in-progress',
-                 'border-green-400 bg-green-50': task.status === 'done',
-                 'border-red-400 bg-red-50': isOverdue(task.dueDate) && task.status !== 'done',
-                 'border-gray-400 bg-gray-50': task.status === 'todo'
+                 'border-green-400 bg-green-50': task.status === 'completed',
+                 'border-red-400 bg-red-50': isOverdue(task.dueDate) && task.status !== 'completed',
+                 'border-gray-400 bg-gray-50': task.status === 'to-do'
                }"
                [style.top]="getTaskPosition(task)">
             <div class="font-medium">{{ task.title }}</div>
@@ -166,16 +166,16 @@
           <div class="flex-shrink-0 h-12 w-12 rounded-lg flex items-center justify-center shadow-md mr-4"
                [ngClass]="{
                  'bg-blue-100': task.status === 'in-progress',
-                 'bg-green-100': task.status === 'done',
-                 'bg-red-100': isOverdue(task.dueDate) && task.status !== 'done',
-                 'bg-gray-100': task.status === 'todo'
+                 'bg-green-100': task.status === 'completed',
+                 'bg-red-100': isOverdue(task.dueDate) && task.status !== 'completed',
+                 'bg-gray-100': task.status === 'to-do'
                }">
             <i class="fas text-xl"
                [ngClass]="{
                  'fa-code text-blue-600': task.status === 'in-progress',
-                 'fa-check text-green-600': task.status === 'done',
-                 'fa-exclamation text-red-600': isOverdue(task.dueDate) && task.status !== 'done',
-                 'fa-tasks text-gray-600': task.status === 'todo'
+                 'fa-check text-green-600': task.status === 'completed',
+                 'fa-exclamation text-red-600': isOverdue(task.dueDate) && task.status !== 'completed',
+                 'fa-tasks text-gray-600': task.status === 'to-do'
                }"></i>
           </div>
           <div class="flex-1 min-w-0">
@@ -263,12 +263,12 @@
         
         <div class="mt-6 pt-4 border-t border-gray-200">
           <div class="flex space-x-3">
-            <button *ngIf="selectedTask?.status !== 'done'" 
-                    (click)="updateTaskStatus('done')"
+            <button *ngIf="selectedTask?.status !== 'completed'" 
+                    (click)="updateTaskStatus('completed')"
                     class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
               <i class="fas fa-check mr-1"></i> Mark Complete
             </button>
-            <button *ngIf="selectedTask?.status === 'todo'" 
+            <button *ngIf="selectedTask?.status === 'to-do'" 
                     (click)="updateTaskStatus('in-progress')"
                     class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
               <i class="fas fa-play mr-1"></i> Start Task

@@ -73,10 +73,10 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
   
   // Task statuses and priorities for HTML template
   taskStatuses = [
-    { value: 'todo', label: 'To Do' },
+    { value: 'to-do', label: 'To Do' },
     { value: 'in-progress', label: 'In Progress' },
     { value: 'review', label: 'In Review' },
-    { value: 'done', label: 'Done' }
+    { value: 'completed', label: 'Completed' }
   ];
   
   priorities = [
@@ -94,10 +94,10 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
 
   // Board Properties
   boardColumns: { id: string; title: string; tasks: Task[] }[] = [
-    { id: 'todo', title: 'To Do', tasks: [] },
+    { id: 'to-do', title: 'To Do', tasks: [] },
     { id: 'in-progress', title: 'In Progress', tasks: [] },
     { id: 'review', title: 'Review', tasks: [] },
-    { id: 'done', title: 'Done', tasks: [] }
+    { id: 'completed', title: 'Completed', tasks: [] }
   ];
 
   // Loading states
@@ -149,17 +149,41 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
     const tasksSub = this.authService.leadGetTasks().subscribe({
       next: (tasks) => {
         console.log('DEBUG: Raw tasks from API:', tasks);
-        this.tasks = tasks;
+        
+        // Map backend task fields to frontend expectations
+        this.tasks = tasks.map(task => ({
+          ...task,
+          // Map sprint field from backend to sprintId for frontend
+          // Sprint can be populated object or string ID
+          sprintId: task.sprint ? (
+            typeof task.sprint === 'object' 
+              ? (task.sprint._id || task.sprint.id) 
+              : task.sprint
+          ) : null,
+          // Map assignee field to match frontend expectations
+          assigneeId: task.assignee ? (typeof task.assignee === 'object' ? task.assignee._id || task.assignee.id : task.assignee) : null,
+          // Map project field to projectId if needed
+          projectId: task.project ? (typeof task.project === 'object' ? task.project._id || task.project.id : task.project) : null
+        }));
+        
+        console.log('DEBUG: Mapped tasks with sprint IDs:', this.tasks.map(t => ({ 
+          title: t.title, 
+          sprintId: t.sprintId, 
+          originalSprint: tasks.find(orig => orig._id === t.id || orig.id === t.id)?.sprint 
+        })));
         
         // Debug first task structure
-        if (tasks && tasks.length > 0) {
-          console.log('DEBUG: First task structure:', tasks[0]);
-          console.log('DEBUG: Task ID fields:', {
-            id: tasks[0].id,
-            _id: tasks[0]._id,
-            assignee: tasks[0].assignee,
-            project: tasks[0].project,
-            projectId: tasks[0].projectId
+        if (this.tasks && this.tasks.length > 0) {
+          console.log('DEBUG: First mapped task structure:', this.tasks[0]);
+          console.log('DEBUG: Task ID fields after mapping:', {
+            id: this.tasks[0].id,
+            _id: this.tasks[0]._id,
+            assignee: this.tasks[0].assignee,
+            assigneeId: this.tasks[0].assigneeId,
+            project: this.tasks[0].project,
+            projectId: this.tasks[0].projectId,
+            sprint: tasks.find(orig => orig._id === this.tasks[0].id || orig.id === this.tasks[0].id)?.sprint,
+            sprintId: this.tasks[0].sprintId
           });
         }
         
@@ -313,11 +337,6 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
     this.subscriptions.push(deleteSub);
   }
 
-  viewTaskDetails(task: Task): void {
-    this.selectedTask = task;
-    this.showTaskDetailsModal = true;
-  }
-
   // Filtering and search
   applyFilters(): void {
     this.filteredTasks = this.tasks.filter(task => {
@@ -379,7 +398,7 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
       sprintId: '',
       assignee: '',
       priority: 'medium',
-      status: 'todo',
+      status: 'to-do',
       dueDate: undefined,
       storyPoints: 1
     };
@@ -490,10 +509,10 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
 
   getStatusClass(status: string): string {
     switch (status?.toLowerCase()) {
-      case 'todo': return 'bg-blue-100 text-blue-800';
+      case 'to-do': return 'bg-blue-100 text-blue-800';
       case 'in-progress': return 'bg-orange-100 text-orange-800';
       case 'review': return 'bg-purple-100 text-purple-800';
-      case 'done': return 'bg-green-100 text-green-800';
+      case 'completed': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   }
@@ -547,7 +566,7 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
 
   updateTaskStatus(task: Task, status: string): void {
     if (task.id) {
-      const taskStatus = status as 'todo' | 'in-progress' | 'review' | 'done';
+      const taskStatus = status as 'to-do' | 'in-progress' | 'review' | 'completed';
       const taskData = { ...task, status: taskStatus };
       this.authService.leadUpdateTask(task.id, taskData).subscribe({
         next: () => {
@@ -616,6 +635,52 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ================== WORKFLOW METHODS ==================
+
+  viewTaskDetails(task: Task): void {
+    this.selectedTask = task;
+    this.showTaskDetailsModal = true;
+  }
+
+  acceptTask(task: Task): void {
+    const reviewNotes = prompt('Add review notes (optional):') || undefined;
+    
+    const acceptSub = this.authService.acceptTask(task._id || task.id, { reviewNotes }).subscribe({
+      next: (response: any) => {
+        this.toastService.show('Task accepted successfully!', 'success');
+        this.loadTasks(); // Reload tasks to get updated status
+      },
+      error: (error: any) => {
+        console.error('Error accepting task:', error);
+        this.toastService.show('Failed to accept task', 'error');
+      }
+    });
+
+    this.subscriptions.push(acceptSub);
+  }
+
+  rejectTask(task: Task): void {
+    const reviewNotes = prompt('Add review notes explaining the rejection:');
+    
+    if (!reviewNotes || reviewNotes.trim() === '') {
+      this.toastService.show('Review notes are required for task rejection', 'error');
+      return;
+    }
+    
+    const rejectSub = this.authService.rejectTask(task._id || task.id, { reviewNotes }).subscribe({
+      next: (response: any) => {
+        this.toastService.show('Task rejected and sent back for revision', 'warning');
+        this.loadTasks(); // Reload tasks to get updated status
+      },
+      error: (error: any) => {
+        console.error('Error rejecting task:', error);
+        this.toastService.show('Failed to reject task', 'error');
+      }
+    });
+
+    this.subscriptions.push(rejectSub);
+  }
+
   // Board organization methods
   organizeBoardTasks(): void {
     // Clear existing tasks
@@ -635,6 +700,6 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
     const dueDate = new Date(task.dueDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return dueDate < today && task.status !== 'done';
+    return dueDate < today && task.status !== 'completed';
   }
 }

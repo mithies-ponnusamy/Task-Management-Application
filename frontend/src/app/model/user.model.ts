@@ -12,6 +12,7 @@ export interface User {
   dob?: string;
   department?: string;
   team?: string | null;
+  teamName?: string | null;  // Add teamName field for display
   status: string;
   employeeType?: string;
   location?: string;
@@ -148,7 +149,7 @@ export interface Task {
   description?: string;
   assigneeId?: string;
   assignee: string;
-  status: 'todo' | 'in-progress' | 'review' | 'done';
+  status: 'to-do' | 'in-progress' | 'review' | 'completed';
   priority: 'low' | 'medium' | 'high';
   startTime?: string;
   endTime?: string;
@@ -158,6 +159,7 @@ export interface Task {
   actualHours?: number;
   project?: string;
   projectId: string;
+  createdBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
   tags: string[]; 
@@ -165,6 +167,57 @@ export interface Task {
   storyPoints?: number;
   sprintId?: string;
   attachments?: { name: string; url: string }[]; // New field for attachments
+  
+  // Workflow fields
+  readAt?: Date;
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  reviewNotes?: string;
+  
+  // Enhanced file and link fields
+  requirementFiles?: {
+    id: string;
+    name: string;
+    filename?: string;
+    originalName?: string;
+    size?: number;
+    type?: string;
+    path?: string;
+    url: string;
+    uploadedAt?: Date;
+    uploadedBy?: string;
+  }[];
+  
+  requirementLinks?: {
+    id: string;
+    title: string;
+    url: string;
+    description?: string;
+    addedAt?: Date;
+    addedBy?: string;
+  }[];
+  
+  completionFiles?: {
+    id: string;
+    name: string;
+    filename?: string;
+    originalName?: string;
+    size?: number;
+    type?: string;
+    path?: string;
+    url: string;
+    uploadedAt?: Date;
+    uploadedBy?: string;
+  }[];
+  
+  completionLinks?: {
+    id: string;
+    title: string;
+    url: string;
+    description?: string;
+    addedAt?: Date;
+    addedBy?: string;
+  }[];
 }
 
 

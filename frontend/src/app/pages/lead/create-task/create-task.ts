@@ -168,7 +168,7 @@ export class CreateTask implements OnInit, OnDestroy {
       sprintId: '',
       assignee: '',
       priority: 'medium' as const,
-      status: 'todo' as const,
+      status: 'to-do' as const,
       dueDate: undefined,
       storyPoints: 1,
       attachments: []
@@ -268,20 +268,26 @@ export class CreateTask implements OnInit, OnDestroy {
     // Filter out empty attachments before saving
     this.newTask.attachments = this.newTask.attachments?.filter(att => att && att.name && att.url);
 
+    // Debug: Log the form data before preparing task data
+    console.log('Creating task with sprint ID:', this.newTask.sprintId);
+
     // Prepare task data in the format expected by the backend
     const taskData = {
       title: this.newTask.title,
       description: this.newTask.description || '',
       assignee: this.newTask.assignee, // This should be the user ID
       projectId: this.newTask.projectId,
-      sprintId: this.newTask.sprintId || null,
+      sprintId: this.newTask.sprintId && this.newTask.sprintId !== '' ? this.newTask.sprintId : null,
       priority: this.newTask.priority || 'medium',
       dueDate: this.newTask.dueDate ? new Date(this.newTask.dueDate) : null,
       storyPoints: this.newTask.storyPoints || 1
     };
 
+    console.log('Task data being sent to backend:', taskData);
+
     const createSub = this.authService.leadCreateTask(taskData).subscribe({
       next: (response) => {
+        console.log('Task creation response:', response);
         this.toastService.show('Task created successfully!', 'success');
         this.router.navigate(['/lead/tasks']);
       },
