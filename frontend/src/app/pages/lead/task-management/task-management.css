@@ -5,6 +5,50 @@
   background-color: #f9fafb;
 }
 
+/* Responsive table improvements */
+.task-table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.task-table {
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.task-table th,
+.task-table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Responsive breakpoints for table columns */
+@media (max-width: 640px) {
+  .task-table th:not(:first-child):not(:nth-child(4)):not(:nth-child(5)):not(:last-child),
+  .task-table td:not(:first-child):not(:nth-child(4)):not(:nth-child(5)):not(:last-child) {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .task-table th:nth-child(3),
+  .task-table td:nth-child(3),
+  .task-table th:nth-child(7),
+  .task-table td:nth-child(7) {
+    display: none;
+  }
+}
+
+@media (max-width: 1024px) {
+  .task-table th:nth-child(6),
+  .task-table td:nth-child(6),
+  .task-table th:nth-child(8),
+  .task-table td:nth-child(8) {
+    display: none;
+  }
+}
+
 .task-card {
   transition: all 0.2s ease-in-out;
 }

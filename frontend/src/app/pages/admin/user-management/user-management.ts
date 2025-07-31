@@ -326,7 +326,7 @@ export class UserManagement implements OnInit, OnDestroy {
           
           // Show toast message after UI updates
           setTimeout(() => {
-            this.toastService.show(`User ${user.name} was deleted successfully.`, 'success');
+            this.toastService.show(`🗑️ User "${user.name}" has been permanently removed from the system and will no longer have access.`, 'success');
           }, 100);
         });
       },
@@ -337,7 +337,7 @@ export class UserManagement implements OnInit, OnDestroy {
           
           // Show toast message after UI updates
           setTimeout(() => {
-            this.toastService.show(`Failed to delete user: ${err.message}`, 'error');
+            this.toastService.show(`❌ Unable to delete user: ${err.message || 'The user might be associated with active projects or tasks.'}`, 'error');
           }, 100);
         });
       }
@@ -393,7 +393,7 @@ export class UserManagement implements OnInit, OnDestroy {
             
             // Show toast message after UI updates
             setTimeout(() => {
-              this.toastService.show(`User ${newUser.name} created successfully.`, 'success');
+              this.toastService.show(`🎉 Welcome aboard! User "${newUser.name}" has been successfully created with ${newUser.role} privileges. They can now log in with email: ${newUser.email}`, 'success');
             }, 100);
           });
         },
@@ -405,7 +405,7 @@ export class UserManagement implements OnInit, OnDestroy {
             
             // Show toast message after UI updates
             setTimeout(() => {
-              this.toastService.show(`Failed to create user: ${err.message}`, 'error');
+              this.toastService.show(`❌ Failed to create user: ${err.message || 'Please check the form data and try again.'}`, 'error');
             }, 100);
           });
         }
@@ -472,7 +472,7 @@ export class UserManagement implements OnInit, OnDestroy {
           
           // Show toast message after UI updates
           setTimeout(() => {
-            this.toastService.show(`User ${updatedUser.name} updated successfully.`, 'success');
+            this.toastService.show(`✅ User "${updatedUser.name}" profile has been successfully updated with the latest changes!`, 'success');
           }, 100);
         });
       },
@@ -485,7 +485,7 @@ export class UserManagement implements OnInit, OnDestroy {
           // Show toast message after UI updates
           setTimeout(() => {
             this.toastService.show(
-              `Failed to update user: ${err.message}`,
+              `❌ Failed to update user profile: ${err.message || 'Please verify the information and try again.'}`,
               'error'
             );
           }, 100);
@@ -624,12 +624,12 @@ export class UserManagement implements OnInit, OnDestroy {
           // Refresh users data to update team assignments
           this.loadUsers();
           
-          this.toastService.show(`Team ${createdTeam.name} created successfully`, 'success');
+          this.toastService.show(`🏗️ Team "${createdTeam.name}" has been successfully created! You can now assign members and start collaborating.`, 'success');
         },
         error: (err) => {
           this.isSubmitting = false;
           console.error('Error creating team:', err);
-          this.toastService.show(`Failed to create team: ${err.message}`, 'error');
+          this.toastService.show(`❌ Failed to create team: ${err.message || 'Please check team details and try again.'}`, 'error');
         },
         complete: () => {
           this.isSubmitting = false;

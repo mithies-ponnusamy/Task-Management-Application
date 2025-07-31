@@ -59,6 +59,7 @@ export class ProjectManagement implements OnInit {
   sprintForm: FormGroup;
   editProjectForm: FormGroup;
   editSprintForm: FormGroup;
+  editTaskForm: FormGroup;
 
   // Tabs
   activeTab: string = 'projects';
@@ -71,6 +72,7 @@ export class ProjectManagement implements OnInit {
   // Sprints
   sprints: any[] = [];
   filteredSprints: any[] = [];
+  filteredSprintsForEdit: any[] = [];
 
   // Users and Teams
   users: any[] = [];
@@ -110,10 +112,12 @@ export class ProjectManagement implements OnInit {
   showEditProjectModal: boolean = false;
   showSprintDetailsModal: boolean = false;
   showEditSprintModal: boolean = false;
+  showEditTaskModal: boolean = false;
 
   // Selected Project/Sprint
   selectedProject: any = null;
   selectedSprint: any = null;
+  selectedTask: any = null;
 
   // File and Link handling
   newLinkUrl: string = '';
@@ -175,6 +179,18 @@ export class ProjectManagement implements OnInit {
       endDate: new FormControl('', Validators.required),
       goal: new FormControl(''),
       selectedTasks: new FormControl([])
+    });
+
+    this.editTaskForm = new FormGroup({
+      title: new FormControl('', [Validators.required, Validators.minLength(3)]),
+      description: new FormControl(''),
+      assignee: new FormControl('', Validators.required),
+      priority: new FormControl('medium'),
+      status: new FormControl('to-do'),
+      dueDate: new FormControl('', Validators.required),
+      storyPoints: new FormControl(1),
+      project: new FormControl('', Validators.required),
+      sprint: new FormControl('')
     });
   }
 
@@ -829,20 +845,31 @@ export class ProjectManagement implements OnInit {
   }
 
   viewSprintDetails(sprintId: string): void {
-    this.selectedSprint = this.sprints.find(s => s.id === sprintId);
-    if (this.selectedSprint) {
-      this.editSprintForm.patchValue({
-        name: this.selectedSprint.name,
-        description: this.selectedSprint.description,
-        project: this.selectedSprint.project,
-        status: this.selectedSprint.status,
-        startDate: this.selectedSprint.startDate,
-        endDate: this.selectedSprint.endDate,
-        goal: this.selectedSprint.goal,
-        selectedTasks: this.selectedSprint.tasks.map((task: any) => task.name)
-      });
-      this.showSprintDetailsModal = true;
-    }
+    this.isLoading = true;
+    
+    // Fetch detailed sprint data with tasks and project information
+    this.authService.adminGetSprintById(sprintId).subscribe({
+      next: (sprintDetails) => {
+        this.selectedSprint = sprintDetails;
+        this.editSprintForm.patchValue({
+          name: sprintDetails.name,
+          description: sprintDetails.description,
+          project: sprintDetails.project?._id || sprintDetails.project,
+          status: sprintDetails.status,
+          startDate: sprintDetails.startDate,
+          endDate: sprintDetails.endDate,
+          goal: sprintDetails.goal,
+          selectedTasks: sprintDetails.sprintTasks ? sprintDetails.sprintTasks.map((task: any) => task.title) : []
+        });
+        this.showSprintDetailsModal = true;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error fetching sprint details:', error);
+        this.toastService.show('Failed to load sprint details', 'error');
+        this.isLoading = false;
+      }
+    });
   }
 
   editSprint(sprintId: string): void {
@@ -985,6 +1012,7 @@ export class ProjectManagement implements OnInit {
     this.showEditProjectModal = false;
     this.showSprintDetailsModal = false;
     this.showEditSprintModal = false;
+    this.showEditTaskModal = false;
   }
 
   // CRUD Operations
@@ -1371,6 +1399,81 @@ export class ProjectManagement implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  // Task Management Methods
+  editTask(task: any): void {
+    this.selectedTask = task;
+    
+    // Populate the form with task data
+    this.editTaskForm.patchValue({
+      title: task.title,
+      description: task.description,
+      assignee: task.assignee?.id || task.assignee,
+      priority: task.priority,
+      status: task.status,
+      dueDate: task.dueDate ? this.formatDateForInput(task.dueDate) : '',
+      storyPoints: task.storyPoints || 1,
+      project: task.project?.id || task.project,
+      sprint: task.sprint?.id || task.sprint
+    });
+
+    // Filter sprints for the selected project
+    this.onProjectChangeEdit();
+    
+    this.showEditTaskModal = true;
+  }
+
+  onProjectChangeEdit(): void {
+    const selectedProjectId = this.editTaskForm.get('project')?.value;
+    if (selectedProjectId) {
+      this.filteredSprintsForEdit = this.sprints.filter(sprint => 
+        sprint.project === selectedProjectId || sprint.project?.id === selectedProjectId
+      );
+    } else {
+      this.filteredSprintsForEdit = [];
+    }
+  }
+
+  updateTask(): void {
+    if (this.editTaskForm.invalid) {
+      this.markFormGroupTouched(this.editTaskForm);
+      return;
+    }
+
+    this.isLoading = true;
+    const taskData = {
+      ...this.editTaskForm.value,
+      id: this.selectedTask.id
+    };
+
+    this.authService.leadUpdateTask(this.selectedTask.id, taskData).subscribe({
+      next: (response: any) => {
+        this.loadInitialData();
+        this.closeAllModals();
+        this.toastService.show(`Task "${taskData.title}" updated successfully.`, 'success');
+        this.isLoading = false;
+        
+        // Refresh sprint details if open
+        if (this.selectedSprint) {
+          this.viewSprintDetails(this.selectedSprint.id);
+        }
+      },
+      error: (error: any) => {
+        console.error('Failed to update task:', error);
+        this.toastService.show(
+          `Failed to update task: ${error.message || 'Unknown error'}`, 
+          'error'
+        );
+        this.isLoading = false;
+      }
+    });
+  }
+
+  formatDateForInput(dateString: string): string {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
   }
 
   deleteSprint(sprint: any): void {

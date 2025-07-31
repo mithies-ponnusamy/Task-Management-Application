@@ -26,6 +26,13 @@ export class Tasks implements OnInit, OnDestroy {
   loading = false;
   private subscriptions: Subscription[] = [];
 
+  // Attachment modal
+  showAttachmentModal = false;
+  selectedTaskForAttachment: Task | null = null;
+  linkUrl = '';
+  linkTitle = '';
+  linkDescription = '';
+
   // Task board data
   allTasks$!: Observable<Task[]>;
   private tasksSubject = new BehaviorSubject<Task[]>([]);
@@ -75,8 +82,8 @@ export class Tasks implements OnInit, OnDestroy {
     
     console.log('DEBUG: Loading tasks for user:', this.currentUser);
     
-    // Use backend API to get tasks assigned to current user
-    const taskSub = this.taskService.getMyTasks().subscribe({
+    // Use auth service to get member tasks
+    const taskSub = this.authService.getMemberTasks().subscribe({
       next: (tasks) => {
         console.log('DEBUG: Tasks from backend API:', tasks);
         this.allTasks = tasks;
@@ -86,7 +93,7 @@ export class Tasks implements OnInit, OnDestroy {
         this.applyFilters();
       },
       error: (error) => {
-        console.error('Error loading user tasks from backend:', error);
+        console.error('Error loading member tasks from backend:', error);
         // Fallback: use the old method if backend fails
         this.loadTasksFromService();
       }
@@ -131,26 +138,47 @@ export class Tasks implements OnInit, OnDestroy {
     if (event.previousContainer === event.container) {
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
     } else {
-      transferArrayItem(
-        event.previousContainer.data,
-        event.container.data,
-        event.previousIndex,
-        event.currentIndex
-      );
-      
-      // Update task status based on the new column
-      const task = event.container.data[event.currentIndex];
+      const task = event.previousContainer.data[event.previousIndex];
       let newStatus: 'to-do' | 'in-progress' | 'review' | 'completed';
+      let canMove = true;
 
+      // Determine new status based on drop location
       if (event.container.id.includes('todo')) newStatus = 'to-do';
       else if (event.container.id.includes('inProgress')) newStatus = 'in-progress';
       else if (event.container.id.includes('review')) newStatus = 'review';
       else newStatus = 'completed';
-      
-      task.status = newStatus;
-      
-      // Update the task on the backend
-      this.taskService.updateTask(task).subscribe();
+
+      // Implement workflow rules
+      if (task.status === 'to-do' && newStatus === 'in-progress') {
+        // Mark task as read when moving from to-do to in-progress
+        this.markTaskAsRead(task);
+      } else if (task.status === 'in-progress' && newStatus === 'review') {
+        // Check if task has completion files/links before moving to review
+        if (!this.hasCompletionAttachments(task)) {
+          alert('Please attach completion files or links before marking as ready for review.');
+          canMove = false;
+        } else {
+          this.moveTaskToReview(task);
+        }
+      } else if (newStatus === 'completed') {
+        // Only team leads can move tasks to completed
+        if (this.currentUser.role !== 'team-lead') {
+          alert('Only team leads can mark tasks as completed.');
+          canMove = false;
+        }
+      }
+
+      if (canMove) {
+        transferArrayItem(
+          event.previousContainer.data,
+          event.container.data,
+          event.previousIndex,
+          event.currentIndex
+        );
+        
+        task.status = newStatus;
+        this.updateTaskStatus(task, newStatus);
+      }
     }
   }
 
@@ -276,12 +304,147 @@ export class Tasks implements OnInit, OnDestroy {
     this.taskService.updateTask(task).subscribe();
   }
 
+  // Task workflow methods
+  markTaskAsRead(task: Task): void {
+    this.authService.markTaskAsRead(task._id || task.id).subscribe({
+      next: (response) => {
+        console.log('Task marked as read:', response);
+        task.status = 'in-progress';
+        this.loadTasks(); // Reload tasks to get updated status
+      },
+      error: (error) => {
+        console.error('Error marking task as read:', error);
+      }
+    });
+  }
+
+  hasCompletionAttachments(task: Task): boolean {
+    // Check if task has completion files or links
+    return !!(task.completionFiles && task.completionFiles.length > 0) || 
+           !!(task.completionLinks && task.completionLinks.length > 0);
+  }
+
+  moveTaskToReview(task: Task): void {
+    this.authService.moveTaskToReview(task._id || task.id).subscribe({
+      next: (response) => {
+        console.log('Task moved to review:', response);
+        task.status = 'review';
+        this.loadTasks(); // Reload tasks to get updated status
+      },
+      error: (error) => {
+        console.error('Error moving task to review:', error);
+      }
+    });
+  }
+
+  // File attachment methods
+  openAttachmentModal(task: Task): void {
+    this.selectedTaskForAttachment = task;
+    this.showAttachmentModal = true;
+  }
+
+  closeAttachmentModal(): void {
+    this.showAttachmentModal = false;
+    this.selectedTaskForAttachment = null;
+  }
+
+  onFileSelected(event: any): void {
+    const files = event.target.files;
+    if (files && files.length > 0 && this.selectedTaskForAttachment) {
+      this.uploadCompletionFiles(this.selectedTaskForAttachment, Array.from(files));
+    }
+  }
+
+  uploadCompletionFiles(task: Task, files: File[]): void {
+    // Validate file sizes (10MB limit per file)
+    const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+    const oversizedFiles = files.filter(file => file.size > maxFileSize);
+    
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles.map(file => `${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`).join(', ');
+      alert(`The following files are too large (max 10MB): ${fileNames}`);
+      return;
+    }
+
+    // Validate number of files (max 5)
+    if (files.length > 5) {
+      alert('Maximum 5 files can be uploaded at once.');
+      return;
+    }
+
+    this.authService.uploadTaskCompletionFiles(task._id || task.id, files).subscribe({
+      next: (response) => {
+        console.log('Files uploaded successfully:', response);
+        // Update task with new files
+        if (!task.completionFiles) task.completionFiles = [];
+        task.completionFiles.push(...response.files);
+        this.closeAttachmentModal();
+        this.loadTasks(); // Reload to get updated task data
+      },
+      error: (error) => {
+        console.error('Error uploading files:', error);
+        if (error.message && error.message.includes('too large')) {
+          alert('One or more files are too large. Maximum file size is 10MB.');
+        } else {
+          alert('Error uploading files: ' + (error.message || 'Unknown error'));
+        }
+      }
+    });
+  }
+
+  addCompletionLink(task: Task, linkData: { url: string; title?: string; description?: string }): void {
+    // Validate required fields
+    if (!linkData.url || !linkData.url.trim()) {
+      alert('URL is required');
+      return;
+    }
+
+    // Provide default title if not provided
+    const finalLinkData = {
+      url: linkData.url.trim(),
+      title: linkData.title && linkData.title.trim() ? linkData.title.trim() : 'Completion Link',
+      description: linkData.description || ''
+    };
+
+    this.authService.addTaskCompletionLink(task._id || task.id, finalLinkData).subscribe({
+      next: (response) => {
+        console.log('Link added successfully:', response);
+        // Update task with new link
+        if (!task.completionLinks) task.completionLinks = [];
+        task.completionLinks.push(response.link);
+        // Clear form
+        this.linkUrl = '';
+        this.linkTitle = '';
+        this.linkDescription = '';
+        // Reload tasks to get updated data
+        this.loadTasks();
+      },
+      error: (error) => {
+        console.error('Error adding link:', error);
+        alert('Error adding link: ' + (error.message || 'Unknown error'));
+      }
+    });
+  }
+
+  // Helper methods for task workflow
+  canMarkAsRead(task: Task): boolean {
+    return task.status === 'to-do';
+  }
+
+  canUploadCompletion(task: Task): boolean {
+    return task.status === 'in-progress';
+  }
+
+  canMoveToReview(task: Task): boolean {
+    return task.status === 'in-progress';
+  }
+
   getStatusColor(status: string): string {
     const colors: { [key: string]: string } = {
-      'todo': 'bg-gray-100 text-gray-800',
+      'to-do': 'bg-gray-100 text-gray-800',
       'in-progress': 'bg-blue-100 text-blue-800',
       'review': 'bg-yellow-100 text-yellow-800',
-      'done': 'bg-green-100 text-green-800'
+      'completed': 'bg-green-100 text-green-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   }

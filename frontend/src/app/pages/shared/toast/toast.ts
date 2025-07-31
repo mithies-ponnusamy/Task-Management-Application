@@ -40,9 +40,11 @@ export class Toast implements OnInit, OnDestroy {
         if (this.timeoutId) {
           clearTimeout(this.timeoutId);
         }
+        // Use custom duration or default to 5 seconds for longer messages
+        const duration = toast.duration || 5000;
         this.timeoutId = window.setTimeout(() => {
           this.currentToast = null;
-        }, 3000); // Toast disappears after 3 seconds
+        }, duration);
       }
     });
   }

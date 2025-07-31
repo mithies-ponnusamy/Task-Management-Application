@@ -601,6 +601,18 @@ export class Auth {
     );
   }
 
+  // Get sprint by ID with detailed information (tasks and project)
+  adminGetSprintById(id: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/admin/sprints/${id}`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to get sprint by ID:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to get sprint details'));
+      })
+    );
+  }
+
   // Delete a sprint
   adminDeleteSprint(id: string): Observable<any> {
     return this.http.delete<any>(`${this.apiUrl}/admin/sprints/${id}`, { 
@@ -898,6 +910,18 @@ export class Auth {
   }
 
   // ================== TEAM MEMBER TASK WORKFLOW ==================
+
+  // Get tasks assigned to current member
+  getMemberTasks(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/users/my-tasks`, { 
+      headers: this.getAuthHeaders() 
+    }).pipe(
+      catchError(error => {
+        console.error('Failed to fetch member tasks:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to fetch member tasks'));
+      })
+    );
+  }
 
   // Mark task as read (Team Member)
   markTaskAsRead(taskId: string): Observable<any> {

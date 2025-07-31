@@ -10,7 +10,6 @@ import { Sidebar } from '../sidebar/sidebar';
 import { LocalStorageService } from '../../../core/services/local-storage/local-storage';
 import { SessionStorage } from '../../../core/services/session-storage/session-storage';
 import { ModalService } from '../../../core/services/modal/modal';
-import { CreateTask } from '../create-task/create-task';
 import { ManageSprints } from '../manage-sprints/manage-sprints';
 import { ManageTeam } from '../manage-team/manage-team';
 import { ProjectDetails } from '../project-details/project-details';
@@ -26,7 +25,6 @@ import { Toast } from "../../shared/toast/toast";
     CommonModule,
     RouterModule,
     Sidebar,
-    CreateTask,
     ManageSprints,
     ManageTeam,
     ProjectDetails,

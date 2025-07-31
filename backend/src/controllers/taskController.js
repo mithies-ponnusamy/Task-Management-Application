@@ -369,18 +369,33 @@ const uploadTaskCompletionFiles = asyncHandler(async (req, res) => {
             uploadedBy: req.user._id
         }));
 
-        // Add completion files to task
-        if (!task.completionFiles) {
-            task.completionFiles = [];
-        }
-        task.completionFiles.push(...newFiles);
+        // If task is in 'to-do' status, automatically move it to 'in-progress' when files are uploaded
+        const updateData = { 
+            $push: { 
+                completionFiles: { $each: newFiles } 
+            }
+        };
 
-        await task.save();
+        // Auto-progress task status if it's still in to-do
+        if (task.status === 'to-do') {
+            updateData.$set = { 
+                status: 'in-progress',
+                readBy: req.user._id,
+                readAt: new Date()
+            };
+        }
+
+        // Use MongoDB $push operator to add completion files
+        const updatedTask = await Task.findByIdAndUpdate(
+            taskId,
+            updateData,
+            { new: true, runValidators: true }
+        );
 
         res.status(201).json({
             message: `${newFiles.length} completion file(s) uploaded successfully`,
             files: newFiles,
-            task: task
+            task: updatedTask
         });
     } catch (error) {
         console.error('Error uploading completion files:', error);
@@ -467,6 +482,13 @@ const addTaskCompletionLink = asyncHandler(async (req, res) => {
             addedAt: new Date(),
             addedBy: req.user._id
         };
+
+        // Auto-progress task status if it's still in to-do
+        if (task.status === 'to-do') {
+            task.status = 'in-progress';
+            task.readBy = req.user._id;
+            task.readAt = new Date();
+        }
 
         if (!task.completionLinks) {
             task.completionLinks = [];

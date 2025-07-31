@@ -6,7 +6,7 @@ import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { 
   faPlus, faEdit, faTrash, faEye, faFilter, faSearch, 
   faTasks, faProjectDiagram, faUsers, faCalendarAlt,
-  faClock, faFlag, faSave, faTimes, faUser
+  faClock, faFlag, faSave, faTimes, faUser, faPaperclip, faCheck
 } from '@fortawesome/free-solid-svg-icons';
 import { Auth } from '../../../core/services/auth/auth';
 import { ToastService } from '../../../core/services/toast/toast';
@@ -38,6 +38,8 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
   faSave = faSave;
   faTimes = faTimes;
   faUser = faUser;
+  faPaperclip = faPaperclip;
+  faCheck = faCheck;
 
   // Data properties
   tasks: Task[] = [];
@@ -52,11 +54,18 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
   showCreateTaskModal = false;
   showEditTaskModal = false;
   showTaskDetailsModal = false;
+  showAttachmentModal = false;
 
   // Form data
   newTask: Partial<Task> = this.initializeTask();
   editingTask: Task | null = null;
   selectedTask: Task | null = null;
+  selectedTaskForAttachment: Task | null = null;
+
+  // Attachment form data
+  linkUrl = '';
+  linkTitle = '';
+  linkDescription = '';
 
   // Filter options
   filterProject = '';
@@ -262,13 +271,13 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
       next: (task) => {
         this.tasks.push(task);
         this.applyFilters();
-        this.toastService.show('Task created successfully', 'success');
+        this.toastService.show(`🎯 Task "${task.title}" has been successfully created and assigned to ${this.getAssigneeName(task) || 'the team'}!`, 'success');
         this.closeCreateTaskModal();
         this.isSubmitting = false;
       },
       error: (error) => {
         console.error('Error creating task:', error);
-        this.toastService.show('Failed to create task', 'error');
+        this.toastService.show('❌ Failed to create task. Please check the task details and try again.', 'error');
         this.isSubmitting = false;
       }
     });
@@ -294,13 +303,13 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
           this.tasks[index] = updatedTask;
           this.applyFilters();
         }
-        this.toastService.show('Task updated successfully', 'success');
+        this.toastService.show(`✏️ Task "${updatedTask.title}" has been successfully updated with your latest changes!`, 'success');
         this.closeEditTaskModal();
         this.isSubmitting = false;
       },
       error: (error) => {
         console.error('Error updating task:', error);
-        this.toastService.show('Failed to update task', 'error');
+        this.toastService.show('❌ Failed to update task. Please verify the task information and try again.', 'error');
         this.isSubmitting = false;
       }
     });
@@ -326,11 +335,11 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
       next: () => {
         this.tasks = this.tasks.filter(t => (t._id || t.id) !== taskId);
         this.applyFilters();
-        this.toastService.show('Task deleted successfully', 'success');
+        this.toastService.show('🗑️ Task has been permanently deleted from the project. This action cannot be undone.', 'success');
       },
       error: (error) => {
         console.error('Error deleting task:', error);
-        this.toastService.show('Failed to delete task', 'error');
+        this.toastService.show('❌ Unable to delete task. It might be in use or associated with other resources.', 'error');
       }
     });
 
@@ -571,11 +580,11 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
       this.authService.leadUpdateTask(task.id, taskData).subscribe({
         next: () => {
           task.status = taskStatus;
-          this.toastService.show('Task status updated successfully', 'success');
+          this.toastService.show(`📊 Task "${task.title}" status has been updated to "${taskStatus.replace('-', ' ').toUpperCase()}" successfully!`, 'success');
         },
         error: (error) => {
           console.error('Error updating task status:', error);
-          this.toastService.show('Failed to update task status', 'error');
+          this.toastService.show('❌ Failed to update task status. Please try again or check your connection.', 'error');
         }
       });
     }
@@ -605,9 +614,15 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
     this.showCreateTaskModal = false;
     this.showEditTaskModal = false;
     this.showTaskDetailsModal = false;
+    this.showAttachmentModal = false;
     this.selectedTask = null;
     this.editingTask = null;
+    this.selectedTaskForAttachment = null;
     this.newTask = this.initializeTask();
+    // Clear attachment form
+    this.linkUrl = '';
+    this.linkTitle = '';
+    this.linkDescription = '';
   }
 
   getAvailableSprintsForProject(projectId: string): Sprint[] {
@@ -642,17 +657,89 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
     this.showTaskDetailsModal = true;
   }
 
+  markTaskAsRead(task: Task): void {
+    this.authService.leadMarkTaskAsRead(task._id || task.id).subscribe({
+      next: (response) => {
+        this.toastService.show('Task marked as read and moved to In Progress!', 'success');
+        task.status = 'in-progress';
+        this.loadTasks(); // Reload tasks to get updated status
+        this.closeTaskDetailsModal();
+      },
+      error: (error) => {
+        console.error('Error marking task as read:', error);
+        this.toastService.show('Failed to mark task as read', 'error');
+      }
+    });
+  }
+
+  // ================== ATTACHMENT METHODS ==================
+
+  openAttachmentModal(task: Task): void {
+    this.selectedTaskForAttachment = task;
+    this.showAttachmentModal = true;
+  }
+
+  closeAttachmentModal(): void {
+    this.showAttachmentModal = false;
+    this.selectedTaskForAttachment = null;
+    // Clear form
+    this.linkUrl = '';
+    this.linkTitle = '';
+    this.linkDescription = '';
+  }
+
+  onFileSelected(event: any): void {
+    const files = event.target.files;
+    if (files && files.length > 0 && this.selectedTaskForAttachment) {
+      this.uploadCompletionFiles(this.selectedTaskForAttachment, Array.from(files));
+    }
+  }
+
+  uploadCompletionFiles(task: Task, files: File[]): void {
+    this.authService.uploadTaskCompletionFiles(task._id || task.id, files).subscribe({
+      next: (response) => {
+        this.toastService.show(`📎 ${files.length} file(s) have been successfully uploaded to task "${task.title}". Team members can now access the attachments!`, 'success');
+        // Update task with new files
+        if (!task.completionFiles) task.completionFiles = [];
+        task.completionFiles.push(...response.files);
+        this.closeAttachmentModal();
+        this.loadTasks(); // Reload to get updated task data
+      },
+      error: (error) => {
+        console.error('Error uploading files:', error);
+        this.toastService.show('❌ File upload failed. Please check file size and format restrictions, then try again.', 'error');
+      }
+    });
+  }
+
+  addCompletionLink(task: Task, linkData: { url: string; title?: string; description?: string }): void {
+    this.authService.addTaskCompletionLink(task._id || task.id, linkData).subscribe({
+      next: (response) => {
+        this.toastService.show(`🔗 Completion link has been successfully added to task "${task.title}". The resource is now accessible to all team members!`, 'success');
+        // Update task with new link
+        if (!task.completionLinks) task.completionLinks = [];
+        task.completionLinks.push(response.link);
+        this.closeAttachmentModal();
+        this.loadTasks(); // Reload to get updated task data
+      },
+      error: (error) => {
+        console.error('Error adding link:', error);
+        this.toastService.show('❌ Failed to add completion link. Please verify the URL format and try again.', 'error');
+      }
+    });
+  }
+
   acceptTask(task: Task): void {
     const reviewNotes = prompt('Add review notes (optional):') || undefined;
     
     const acceptSub = this.authService.acceptTask(task._id || task.id, { reviewNotes }).subscribe({
       next: (response: any) => {
-        this.toastService.show('Task accepted successfully!', 'success');
+        this.toastService.show(`✅ Excellent! Task "${task.title}" has been approved and marked as completed. Great work by the team!`, 'success');
         this.loadTasks(); // Reload tasks to get updated status
       },
       error: (error: any) => {
         console.error('Error accepting task:', error);
-        this.toastService.show('Failed to accept task', 'error');
+        this.toastService.show('❌ Unable to approve task. Please try again or contact support if the issue persists.', 'error');
       }
     });
 
@@ -663,13 +750,13 @@ export class TaskManagementComponent implements OnInit, OnDestroy {
     const reviewNotes = prompt('Add review notes explaining the rejection:');
     
     if (!reviewNotes || reviewNotes.trim() === '') {
-      this.toastService.show('Review notes are required for task rejection', 'error');
+      this.toastService.show('⚠️ Review notes are required when rejecting a task. Please provide specific feedback to help the team improve.', 'error');
       return;
     }
     
     const rejectSub = this.authService.rejectTask(task._id || task.id, { reviewNotes }).subscribe({
       next: (response: any) => {
-        this.toastService.show('Task rejected and sent back for revision', 'warning');
+        this.toastService.show(`🔄 Task "${task.title}" has been rejected and sent back for revision. The team member will receive your feedback to make improvements.`, 'warning');
         this.loadTasks(); // Reload tasks to get updated status
       },
       error: (error: any) => {

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Auth } from '../../../core/services/auth/auth';
+import { ToastService } from '../../../core/services/toast/toast';
 
 @Component({
   selector: 'app-lead-team-management',
@@ -32,7 +33,7 @@ export class TeamManagementComponent implements OnInit {
   searchQuery = '';
   filteredAvailableUsers: any[] = [];
 
-  constructor(private authService: Auth) {}
+  constructor(private authService: Auth, private toastService: ToastService) {}
 
   ngOnInit(): void {
     this.loadTeamData();
@@ -46,6 +47,10 @@ export class TeamManagementComponent implements OnInit {
       this.teamMembers = this.teamData?.members || [];
     } catch (error) {
       console.error('Error loading team data:', error);
+      this.toastService.show(
+        '⚠️ Unable to load team data. Please refresh the page or check your connection.',
+        'error'
+      );
     } finally {
       this.isLoading = false;
     }
@@ -60,6 +65,10 @@ export class TeamManagementComponent implements OnInit {
       console.error('Error loading available users:', error);
       this.availableUsers = [];
       this.filteredAvailableUsers = [];
+      this.toastService.show(
+        '⚠️ Unable to load available users. Some team management features may be limited.',
+        'warning'
+      );
     }
   }
 
@@ -121,35 +130,92 @@ export class TeamManagementComponent implements OnInit {
   }
 
   async addSelectedMembers(): Promise<void> {
-    if (this.selectedUsersToAdd.length === 0) return;
+    if (this.selectedUsersToAdd.length === 0) {
+      this.toastService.show(
+        'ℹ️ Please select at least one team member to add to your team.',
+        'info'
+      );
+      return;
+    }
 
     this.isAddingMembers = true;
     try {
-      await this.authService.leadAddTeamMembers(this.selectedUsersToAdd).toPromise();
+      const response = await this.authService.leadAddTeamMembers(this.selectedUsersToAdd).toPromise();
+      
+      // Get the names of added members for the toast message
+      const addedMemberNames = this.availableUsers
+        .filter(user => this.selectedUsersToAdd.includes(user._id || user.id))
+        .map(user => user.name);
+      
+      const memberCount = addedMemberNames.length;
+      const memberList = memberCount <= 3 
+        ? addedMemberNames.join(', ')
+        : `${addedMemberNames.slice(0, 2).join(', ')} and ${memberCount - 2} others`;
+      
+      // Show success toast with member details
+      this.toastService.show(
+        `🎉 Successfully added ${memberCount} team member${memberCount > 1 ? 's' : ''} to your team! Welcome ${memberList} to the team. They can now access team projects and tasks.`,
+        'success'
+      );
+      
       this.closeModals();
       await this.loadTeamData();
       await this.loadAvailableUsers();
     } catch (error) {
       console.error('Error adding team members:', error);
+      
+      // Show error toast with helpful message
+      this.toastService.show(
+        '❌ Failed to add team members. Please ensure the selected users are available and try again. If the issue persists, contact your administrator.',
+        'error'
+      );
     } finally {
       this.isAddingMembers = false;
     }
   }
 
   async removeSelectedMembers(): Promise<void> {
-    if (this.selectedUsersToRemove.length === 0) return;
+    if (this.selectedUsersToRemove.length === 0) {
+      this.toastService.show(
+        'ℹ️ Please select at least one team member to remove from your team.',
+        'info'
+      );
+      return;
+    }
 
-    if (!confirm(`Are you sure you want to remove ${this.selectedUsersToRemove.length} member(s) from the team?`)) {
+    const removedMemberNames = this.teamMembers
+      .filter(member => this.selectedUsersToRemove.includes(member._id || member.id))
+      .map(member => member.name);
+
+    const memberCount = removedMemberNames.length;
+    const memberList = memberCount <= 3 
+      ? removedMemberNames.join(', ')
+      : `${removedMemberNames.slice(0, 2).join(', ')} and ${memberCount - 2} others`;
+
+    if (!confirm(`Are you sure you want to remove ${memberList} from the team? They will lose access to team projects and tasks.`)) {
       return;
     }
 
     try {
       await this.authService.leadRemoveTeamMembers(this.selectedUsersToRemove).toPromise();
+      
+      // Show success toast with member details
+      this.toastService.show(
+        `👋 Successfully removed ${memberCount} team member${memberCount > 1 ? 's' : ''} from your team. ${memberList} no longer have access to team resources.`,
+        'warning'
+      );
+      
       this.closeModals();
       await this.loadTeamData();
       await this.loadAvailableUsers();
     } catch (error) {
       console.error('Error removing team members:', error);
+      
+      // Show error toast with helpful message
+      this.toastService.show(
+        '❌ Failed to remove team members. They might be assigned to active tasks or projects. Please reassign their work before removing them from the team.',
+        'error'
+      );
     }
   }
 
